@@ -1,0 +1,137 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+/coverage
+*.test.ts.snap
+.nyc_output
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+.vercel
+
+# Production
+/build
+/dist
+
+# Environment Variables - CRITICAL: Never commit these!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
+
+# Secrets and Keys - CRITICAL: Never commit these!
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+config/secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+/data
+/database
+mongodb-data/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.swp
+*.swo
+*~
+.Spotlight-V100
+.Trashes
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+*.iml
+.vs/
+
+# Temporary Files
+*.tmp
+*.temp
+*.cache
+.cache/
+.temp/
+tmp/
+
+# Build Tools
+.turbo
+.webpack/
+.parcel-cache/
+
+# Package Manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpm-store/
+
+# Backup Files
+*.backup
+*.bak
+*.old
+*~
+
+# User Uploads (if any)
+/uploads
+/public/uploads
+
+# Documentation (temporary/internal)
+NOTES.md
+TODO.md
+INTERNAL.md
+TEMP*.md
+DEPLOYMENT_CHECKLIST.md
+
+# Analytics and Monitoring
+.lighthouseci/
+
+# Sentry
+.sentryclirc
+
+# TypeScript
+*.tsbuildinfo
+
+# PWA
+**/public/sw.js
+**/public/workbox-*.js
+**/public/worker-*.js
+**/public/sw.js.map
+**/public/workbox-*.js.map
+**/public/worker-*.js.map
+
+# Misc
+.eslintcache
+.stylelintcache
+*.orig

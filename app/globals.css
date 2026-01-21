@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+:root {
+  --background: #EEEEEE;
+  --foreground: #222831;
+  --card: #ffffff;
+  --card-foreground: #222831;
+  --primary: #00ADB5;
+  --primary-foreground: #ffffff;
+  --secondary: #393E46;
+  --secondary-foreground: #EEEEEE;
+  --muted: #e5e5e5;
+  --muted-foreground: #393E46;
+  --border: #d1d1d1;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+@theme {
+  --color-background: #EEEEEE;
+  --color-foreground: #222831;
+  --color-card: #ffffff;
+  --color-card-foreground: #222831;
+  --color-primary: #00ADB5;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #393E46;
+  --color-secondary-foreground: #EEEEEE;
+  --color-muted: #e5e5e5;
+  --color-muted-foreground: #393E46;
+  --color-border: #d1d1d1;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Accessibility - Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Custom scrollbar - Optimized */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Focus styles - Accessibility */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Print styles - Performance */
+@media print {
+  body {
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  .invoice-card {
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+}
+
+/* Invoice Card - Optimized */
+.invoice-card {
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease;
+  will-change: box-shadow;
+}
+
+.invoice-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* PDF Export - Optimized */
+.invoice-card {
+  color: #000 !important;
+  background-color: #fff !important;
+}
+
+.invoice-card * {
+  color: inherit !important;
+  background-color: transparent !important;
+}
+
+.invoice-card h1,
+.invoice-card h2,
+.invoice-card h3,
+.invoice-card p,
+.invoice-card span {
+  color: #000 !important;
+}
+
+.invoice-card table {
+  color: #000 !important;
+}
+
+.invoice-card table th,
+.invoice-card table td {
+  color: #000 !important;
+  background-color: transparent !important;
+}
+
+/* Reduced motion - Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
