@@ -29,10 +29,11 @@ export function Input({ label, error, className, id, icon: Icon, ...props }: Inp
         <input
           id={inputId}
           className={cn(
-            'w-full h-10 px-3 rounded-lg border bg-card text-foreground placeholder:text-muted-foreground transition-colors',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
+            'w-full h-10 px-3 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground transition-all',
+            'focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20',
+            'hover:border-border/80',
             Icon && 'pl-9',
-            error && 'border-danger focus:ring-danger',
+            error && 'border-danger/50 focus:border-danger focus:ring-danger/20',
             className
           )}
           {...props}

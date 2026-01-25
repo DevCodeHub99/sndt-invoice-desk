@@ -53,10 +53,17 @@ export interface Invoice {
   placeOfSupply?: string;
   isInterState: boolean;
   items: InvoiceItem[];
+  manpowerCharges?: Array<{ 
+    description: string; 
+    quantity: number;
+    rate: number;
+    amount: number;
+  }>; // Labor costs without GST
   subtotal: number;
   cgst: number;
   sgst: number;
   igst: number;
+  manpowerTotal?: number; // Total manpower charges
   roundOff: number;
   total: number;
   status: 'pending' | 'paid';
@@ -98,5 +105,16 @@ export interface User {
   password: string;
   businessDetails?: BusinessDetails;
   isSetupComplete: boolean;
+  createdAt: Date;
+}
+
+export interface Labor {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  rateType: 'fixed' | 'per_unit'; // Fixed amount or per unit rate
+  rate: number; // Rate per unit or fixed amount
+  unit?: string; // e.g., "per brick", "per bag", "per hour"
   createdAt: Date;
 }

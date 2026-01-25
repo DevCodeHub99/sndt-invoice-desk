@@ -24,8 +24,8 @@ if (fs.existsSync(envPath)) {
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/invoicedesk';
 
 // Admin credentials
-const ADMIN_EMAIL = 'admin@sndt.com';
-const ADMIN_PASSWORD = 'Admin@123';
+const ADMIN_EMAIL = 'test@example.com';
+const ADMIN_PASSWORD = 'Test@123';
 
 console.log('\n🔐 Admin Credentials:');
 console.log('   Email:', ADMIN_EMAIL);
@@ -133,6 +133,37 @@ const seedProducts = [
   { id: uuidv4(), name: 'Security Guard', description: 'Security personnel per month', price: 22000, hsnSac: '998212', createdAt: new Date() },
   { id: uuidv4(), name: 'Alarm System', description: 'Intrusion detection alarm system', price: 35000, hsnSac: '8525', createdAt: new Date() },
   { id: uuidv4(), name: 'Cybersecurity Audit', description: 'IT security assessment and penetration testing', price: 125000, hsnSac: '998314', createdAt: new Date() },
+];
+
+// Labor Charges (Manpower services without GST)
+const seedLaborCharges = [
+  // Construction Labor
+  { id: uuidv4(), name: 'Loading/Unloading', description: 'Material loading and unloading services', rateType: 'per_unit', rate: 3, unit: 'per brick', createdAt: new Date() },
+  { id: uuidv4(), name: 'Brick Loading', description: 'Brick loading labor charges', rateType: 'per_unit', rate: 5, unit: 'per 100 bricks', createdAt: new Date() },
+  { id: uuidv4(), name: 'Sand Loading', description: 'Sand loading and transportation', rateType: 'per_unit', rate: 500, unit: 'per ton', createdAt: new Date() },
+  { id: uuidv4(), name: 'Cement Unloading', description: 'Cement bag unloading', rateType: 'per_unit', rate: 10, unit: 'per bag', createdAt: new Date() },
+  { id: uuidv4(), name: 'Steel Unloading', description: 'Steel bars unloading', rateType: 'per_unit', rate: 800, unit: 'per ton', createdAt: new Date() },
+  
+  // Installation Labor
+  { id: uuidv4(), name: 'AC Installation', description: 'Air conditioner installation labor', rateType: 'fixed', rate: 2500, createdAt: new Date() },
+  { id: uuidv4(), name: 'Furniture Assembly', description: 'Office furniture assembly', rateType: 'per_unit', rate: 500, unit: 'per unit', createdAt: new Date() },
+  { id: uuidv4(), name: 'Electrical Fitting', description: 'Electrical fixture installation', rateType: 'per_unit', rate: 300, unit: 'per point', createdAt: new Date() },
+  { id: uuidv4(), name: 'Plumbing Fitting', description: 'Plumbing fixture installation', rateType: 'per_unit', rate: 400, unit: 'per fixture', createdAt: new Date() },
+  { id: uuidv4(), name: 'False Ceiling Work', description: 'False ceiling installation labor', rateType: 'per_unit', rate: 150, unit: 'per sq ft', createdAt: new Date() },
+  
+  // Cleaning & Maintenance
+  { id: uuidv4(), name: 'Site Cleaning', description: 'Construction site cleaning', rateType: 'fixed', rate: 5000, createdAt: new Date() },
+  { id: uuidv4(), name: 'Debris Removal', description: 'Construction debris removal', rateType: 'per_unit', rate: 1500, unit: 'per truck', createdAt: new Date() },
+  { id: uuidv4(), name: 'Deep Cleaning', description: 'Post-construction deep cleaning', rateType: 'per_unit', rate: 50, unit: 'per sq ft', createdAt: new Date() },
+  { id: uuidv4(), name: 'Painting Helper', description: 'Painting assistant labor', rateType: 'fixed', rate: 1500, createdAt: new Date() },
+  { id: uuidv4(), name: 'Masonry Helper', description: 'Masonry work assistant', rateType: 'fixed', rate: 1200, createdAt: new Date() },
+  
+  // Transportation & Logistics
+  { id: uuidv4(), name: 'Material Transportation', description: 'Local material transportation', rateType: 'per_unit', rate: 2000, unit: 'per trip', createdAt: new Date() },
+  { id: uuidv4(), name: 'Equipment Moving', description: 'Heavy equipment moving', rateType: 'fixed', rate: 8000, createdAt: new Date() },
+  { id: uuidv4(), name: 'Warehouse Labor', description: 'Warehouse handling charges', rateType: 'per_unit', rate: 600, unit: 'per day', createdAt: new Date() },
+  { id: uuidv4(), name: 'Packing Services', description: 'Material packing labor', rateType: 'per_unit', rate: 20, unit: 'per box', createdAt: new Date() },
+  { id: uuidv4(), name: 'Inventory Handling', description: 'Inventory management labor', rateType: 'fixed', rate: 3000, createdAt: new Date() },
 ];
 
 // Comprehensive Clients (25 clients from different states and industries)
@@ -355,7 +386,7 @@ const seedClients = [
 ];
 
 // Generate comprehensive invoices covering all scenarios
-function generateComprehensiveInvoices(products, clients) {
+function generateComprehensiveInvoices(products, clients, laborCharges) {
   const invoices = [];
   const businessGSTIN = '27AABCT6789H6Z5';
   const businessState = getStateFromGSTIN(businessGSTIN);
@@ -424,8 +455,27 @@ function generateComprehensiveInvoices(products, clients) {
       subtotal += itemSubtotal;
     }
     
+    // Add manpower charges to some invoices (60% chance)
+    const manpowerCharges = [];
+    let manpowerTotal = 0;
+    if (Math.random() > 0.4 && i < 10) {
+      const numLabor = Math.floor(Math.random() * 3) + 1;
+      for (let k = 0; k < numLabor; k++) {
+        const labor = laborCharges[(i + k) % laborCharges.length];
+        const quantity = labor.rateType === 'fixed' ? 1 : Math.floor(Math.random() * 50) + 10;
+        const amount = labor.rate * quantity;
+        manpowerCharges.push({
+          description: labor.name,
+          quantity,
+          rate: labor.rate,
+          amount,
+        });
+        manpowerTotal += amount;
+      }
+    }
+    
     const totalTax = totalCgst + totalSgst + totalIgst;
-    const total = subtotal + totalTax;
+    const total = subtotal + totalTax + manpowerTotal;
     const roundOff = Math.round(total) - total;
     
     invoices.push({
@@ -439,10 +489,12 @@ function generateComprehensiveInvoices(products, clients) {
       placeOfSupply: client.taxId ? `${client.billingState} - ${getStateCode(client.billingState)}` : client.billingState,
       isInterState: isInterState || false,
       items,
+      manpowerCharges: manpowerCharges.length > 0 ? manpowerCharges : undefined,
       subtotal,
       cgst: totalCgst,
       sgst: totalSgst,
       igst: totalIgst,
+      manpowerTotal: manpowerTotal > 0 ? manpowerTotal : undefined,
       roundOff,
       total: Math.round(total),
       status: statuses[i % statuses.length],
@@ -727,6 +779,42 @@ function generateComprehensiveInvoices(products, clients) {
     dueDate: new Date(noGstDate.getTime() + 15 * 24 * 60 * 60 * 1000),
   });
   
+  // 3e. Invoice with only manpower charges (no products)
+  const laborOnlyClient = clients[2];
+  const laborOnlyDate = new Date();
+  laborOnlyDate.setDate(laborOnlyDate.getDate() - 4);
+  const laborOnlyCharges = [
+    { description: laborCharges[0].name, quantity: 500, rate: laborCharges[0].rate, amount: 500 * laborCharges[0].rate },
+    { description: laborCharges[10].name, quantity: 1, rate: laborCharges[10].rate, amount: laborCharges[10].rate },
+    { description: laborCharges[15].name, quantity: 3, rate: laborCharges[15].rate, amount: 3 * laborCharges[15].rate },
+  ];
+  const laborOnlyTotal = laborOnlyCharges.reduce((sum, item) => sum + item.amount, 0);
+  
+  invoices.push({
+    id: uuidv4(),
+    invoiceNumber: 'INV-2026-1104',
+    clientId: laborOnlyClient.id,
+    clientName: laborOnlyClient.companyName,
+    clientAddress: `${laborOnlyClient.billingAddress}, ${laborOnlyClient.billingCity}, ${laborOnlyClient.billingState} ${laborOnlyClient.billingZipCode}`,
+    clientGstin: laborOnlyClient.taxId,
+    clientState: laborOnlyClient.billingState,
+    placeOfSupply: `${laborOnlyClient.billingState} - ${getStateCode(laborOnlyClient.billingState)}`,
+    isInterState: false,
+    items: [],
+    manpowerCharges: laborOnlyCharges,
+    subtotal: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    manpowerTotal: laborOnlyTotal,
+    roundOff: Math.round(laborOnlyTotal) - laborOnlyTotal,
+    total: Math.round(laborOnlyTotal),
+    status: 'pending',
+    notes: 'Labor charges only - No GST applicable',
+    createdAt: laborOnlyDate,
+    dueDate: new Date(laborOnlyDate.getTime() + 15 * 24 * 60 * 60 * 1000),
+  });
+  
   return invoices;
 }
 
@@ -803,16 +891,29 @@ const invoiceSchema = new mongoose.Schema({
   placeOfSupply: String,
   isInterState: Boolean,
   items: Array,
+  manpowerCharges: Array, // Labor charges without GST
   subtotal: Number,
   cgst: Number,
   sgst: Number,
   igst: Number,
+  manpowerTotal: Number, // Total manpower charges
   roundOff: Number,
   total: Number,
   status: String,
   notes: String,
   createdAt: Date,
   dueDate: Date,
+});
+
+const laborSchema = new mongoose.Schema({
+  id: String,
+  userId: { type: String, required: true, index: true }, // User isolation
+  name: String,
+  description: String,
+  rateType: String, // 'fixed' or 'per_unit'
+  rate: Number,
+  unit: String, // Optional unit description
+  createdAt: Date,
 });
 
 async function seedDatabase() {
@@ -827,6 +928,7 @@ async function seedDatabase() {
     const User = mongoose.models.User || mongoose.model('User', userSchema);
     const Product = mongoose.models.Product || mongoose.model('Product', productSchema);
     const Client = mongoose.models.Client || mongoose.model('Client', clientSchema);
+    const Labor = mongoose.models.Labor || mongoose.model('Labor', laborSchema);
     const Invoice = mongoose.models.Invoice || mongoose.model('Invoice', invoiceSchema);
 
     // Clear existing data
@@ -834,6 +936,7 @@ async function seedDatabase() {
     await User.deleteMany({});
     await Product.deleteMany({});
     await Client.deleteMany({});
+    await Labor.deleteMany({});
     await Invoice.deleteMany({});
     console.log('✅ Existing data cleared');
 
@@ -890,9 +993,18 @@ async function seedDatabase() {
     await Client.insertMany(clientsWithUserId);
     console.log(`✅ Inserted ${seedClients.length} clients`);
 
+    // Insert labor charges with userId
+    console.log('👷 Inserting labor charges...');
+    const laborWithUserId = seedLaborCharges.map(labor => ({
+      ...labor,
+      userId: adminUserId,
+    }));
+    await Labor.insertMany(laborWithUserId);
+    console.log(`✅ Inserted ${seedLaborCharges.length} labor charges`);
+
     // Generate and insert invoices with userId
     console.log('📄 Generating comprehensive invoices...');
-    const invoices = generateComprehensiveInvoices(seedProducts, seedClients);
+    const invoices = generateComprehensiveInvoices(seedProducts, seedClients, seedLaborCharges);
     const invoicesWithUserId = invoices.map(invoice => ({
       ...invoice,
       userId: adminUserId,
@@ -922,6 +1034,9 @@ async function seedDatabase() {
     
     const interStateInvoices = invoices.filter(inv => inv.isInterState);
     const intraStateInvoices = invoices.filter(inv => !inv.isInterState);
+    
+    const invoicesWithManpower = invoices.filter(inv => inv.manpowerCharges && inv.manpowerCharges.length > 0);
+    const laborOnlyInvoices = invoices.filter(inv => (!inv.items || inv.items.length === 0) && inv.manpowerCharges && inv.manpowerCharges.length > 0);
 
     console.log('\n🎉 Database seeded successfully!');
     console.log('\n📊 Comprehensive Summary:');
@@ -929,6 +1044,7 @@ async function seedDatabase() {
     console.log(`   👤 Admin User: 1 (ID: ${adminUserId})`);
     console.log(`   📦 Products: ${seedProducts.length} (covering multiple industries)`);
     console.log(`   🏢 Clients: ${seedClients.length} (from ${new Set(seedClients.map(c => c.billingState)).size} states)`);
+    console.log(`   👷 Labor Charges: ${seedLaborCharges.length} (manpower services)`);
     console.log(`   📄 Total Invoices: ${invoices.length}`);
     console.log('');
     console.log('📅 Invoice Distribution:');
@@ -948,6 +1064,10 @@ async function seedDatabase() {
     console.log(`   🔄 Inter-State (IGST): ${interStateInvoices.length} invoices`);
     console.log(`   🏠 Intra-State (CGST+SGST): ${intraStateInvoices.length} invoices`);
     console.log('');
+    console.log('👷 Manpower Charges:');
+    console.log(`   ✅ Invoices with labor: ${invoicesWithManpower.length}`);
+    console.log(`   📋 Labor-only invoices: ${laborOnlyInvoices.length}`);
+    console.log('');
     console.log('🎯 Feature Coverage:');
     console.log('   ✅ Multiple tax rates (0%, 5%, 12%, 18%)');
     console.log('   ✅ Inter-state and intra-state transactions');
@@ -957,6 +1077,9 @@ async function seedDatabase() {
     console.log('   ✅ High-value invoices (₹50L+)');
     console.log('   ✅ Zero-tax invoices (exempt goods)');
     console.log('   ✅ Multiple items per invoice');
+    console.log('   ✅ Manpower charges (no GST)');
+    console.log('   ✅ Labor-only invoices');
+    console.log('   ✅ Mixed product + labor invoices');
     console.log('   ✅ Round-off calculations');
     console.log('   ✅ Current month + Archive invoices');
     console.log('');

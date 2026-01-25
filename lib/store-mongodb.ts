@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Product, Client, Invoice, User, BusinessDetails } from './types';
+import type { Product, Client, Invoice, User, BusinessDetails, Labor } from './types';
 
 // ============================================================================
 // SPLIT STORES - Prevent unnecessary re-renders
@@ -13,39 +13,42 @@ interface AuthState {
   currentUser: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  register: (email: string, password: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   verifyAuth: () => Promise<boolean>;
-  updateBusinessDetails: (details: BusinessDetails) => Promise<void>;
-  completeSetup: () => Promise<void>;
 }
 
-// Products Store - Isolated, only loads when needed
+// Products Store - Always fetch fresh data
 interface ProductsState {
   products: Product[];
-  isLoaded: boolean;
   fetchProducts: () => Promise<void>;
   addProduct: (product: Omit<Product, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
 }
 
-// Clients Store - Isolated, only loads when needed
+// Clients Store - Always fetch fresh data
 interface ClientsState {
   clients: Client[];
-  isLoaded: boolean;
   fetchClients: () => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
   updateClient: (id: string, client: Partial<Client>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 }
 
-// Invoices Store - Isolated, only loads when needed
+// Labor Store - Always fetch fresh data
+interface LaborState {
+  laborCharges: Labor[];
+  fetchLaborCharges: () => Promise<void>;
+  addLaborCharge: (labor: Omit<Labor, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  updateLaborCharge: (id: string, labor: Partial<Labor>) => Promise<void>;
+  deleteLaborCharge: (id: string) => Promise<void>;
+}
+
+// Invoices Store - Always fetch fresh data
 interface InvoicesState {
   invoices: Invoice[];
   archivedInvoices: Partial<Invoice>[];
-  isLoaded: boolean;
   fetchInvoices: () => Promise<void>;
   fetchArchivedInvoices: () => Promise<void>;
   addInvoice: (invoice: Omit<Invoice, 'id' | 'userId' | 'invoiceNumber' | 'createdAt'>) => Promise<void>;
@@ -112,19 +115,6 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       loading: false,
 
-      register: async (email: string, password: string) => {
-        const { ok, data } = await apiCall<any>('/api/auth/register', {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (ok && data?.user) {
-          set({ currentUser: data.user, isAuthenticated: true });
-          return true;
-        }
-        return false;
-      },
-
       login: async (email: string, password: string) => {
         const { ok, data } = await apiCall<any>('/api/auth/login', {
           method: 'POST',
@@ -133,7 +123,6 @@ export const useAuthStore = create<AuthState>()(
 
         if (ok && data?.user) {
           set({ currentUser: data.user, isAuthenticated: true });
-          // ✅ GOOD: Don't load data here, let pages load what they need
           return true;
         }
         return false;
@@ -143,12 +132,10 @@ export const useAuthStore = create<AuthState>()(
         await apiCall('/api/auth/logout', { method: 'POST' });
         set({ currentUser: null, isAuthenticated: false });
         // Clear other stores
-        useProductsStore.getState().products = [];
-        useProductsStore.getState().isLoaded = false;
-        useClientsStore.getState().clients = [];
-        useClientsStore.getState().isLoaded = false;
-        useInvoicesStore.getState().invoices = [];
-        useInvoicesStore.getState().isLoaded = false;
+        useProductsStore.setState({ products: [] });
+        useClientsStore.setState({ clients: [] });
+        useLaborStore.setState({ laborCharges: [] });
+        useInvoicesStore.setState({ invoices: [] });
       },
 
       verifyAuth: async () => {
@@ -166,34 +153,6 @@ export const useAuthStore = create<AuthState>()(
 
         return true;
       },
-
-      updateBusinessDetails: async (details: BusinessDetails) => {
-        const user = get().currentUser;
-        if (!user) return;
-
-        const { ok, data } = await apiCall<any>(`/api/user/${user.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ businessDetails: details }),
-        });
-
-        if (ok && data?.user) {
-          set({ currentUser: data.user });
-        }
-      },
-
-      completeSetup: async () => {
-        const user = get().currentUser;
-        if (!user) return;
-
-        const { ok, data } = await apiCall<any>(`/api/user/${user.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ isSetupComplete: true }),
-        });
-
-        if (ok && data?.user) {
-          set({ currentUser: data.user });
-        }
-      },
     }),
     {
       name: 'auth-storage',
@@ -206,19 +165,16 @@ export const useAuthStore = create<AuthState>()(
 );
 
 // ============================================================================
-// PRODUCTS STORE - Lazy loaded
+// Products Store - Always fetch fresh data, no caching
 // ============================================================================
 export const useProductsStore = create<ProductsState>((set, get) => ({
   products: [],
-  isLoaded: false,
 
   fetchProducts: async () => {
-    if (get().isLoaded) return; // ✅ Cache: Don't refetch if already loaded
-    
     const { ok, data } = await apiCall<any>('/api/products');
     if (ok && data) {
-      const products = data.products || data.data?.products || [];
-      set({ products, isLoaded: true });
+      const products = data.products || [];
+      set({ products });
     }
   },
 
@@ -227,7 +183,10 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       method: 'POST',
       body: JSON.stringify(product),
     });
-    if (ok) await get().fetchProducts();
+    if (ok) {
+      // Refetch to get the latest data
+      await get().fetchProducts();
+    }
   },
 
   updateProduct: async (id, product) => {
@@ -236,38 +195,31 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       body: JSON.stringify(product),
     });
     if (ok) {
-      // ✅ Optimistic update instead of refetch
-      set(state => ({
-        products: state.products.map(p => p.id === id ? { ...p, ...product } : p)
-      }));
+      // Refetch to get the latest data
+      await get().fetchProducts();
     }
   },
 
   deleteProduct: async (id) => {
     const { ok } = await apiCall(`/api/products/${id}`, { method: 'DELETE' });
     if (ok) {
-      // ✅ Optimistic update
-      set(state => ({
-        products: state.products.filter(p => p.id !== id)
-      }));
+      // Refetch to get the latest data
+      await get().fetchProducts();
     }
   },
 }));
 
 // ============================================================================
-// CLIENTS STORE - Lazy loaded
+// Clients Store - Always fetch fresh data, no caching
 // ============================================================================
 export const useClientsStore = create<ClientsState>((set, get) => ({
   clients: [],
-  isLoaded: false,
 
   fetchClients: async () => {
-    if (get().isLoaded) return;
-    
     const { ok, data } = await apiCall<any>('/api/clients');
     if (ok && data) {
-      const clients = data.clients || data.data?.clients || [];
-      set({ clients, isLoaded: true });
+      const clients = data.clients || [];
+      set({ clients });
     }
   },
 
@@ -276,7 +228,10 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       method: 'POST',
       body: JSON.stringify(client),
     });
-    if (ok) await get().fetchClients();
+    if (ok) {
+      // Refetch to get the latest data
+      await get().fetchClients();
+    }
   },
 
   updateClient: async (id, client) => {
@@ -285,37 +240,32 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       body: JSON.stringify(client),
     });
     if (ok) {
-      set(state => ({
-        clients: state.clients.map(c => c.id === id ? { ...c, ...client } : c)
-      }));
+      // Refetch to get the latest data
+      await get().fetchClients();
     }
   },
 
   deleteClient: async (id) => {
     const { ok } = await apiCall(`/api/clients/${id}`, { method: 'DELETE' });
     if (ok) {
-      set(state => ({
-        clients: state.clients.filter(c => c.id !== id)
-      }));
+      // Refetch to get the latest data
+      await get().fetchClients();
     }
   },
 }));
 
 // ============================================================================
-// INVOICES STORE - Lazy loaded
+// Invoices Store - Always fetch fresh data, no caching
 // ============================================================================
 export const useInvoicesStore = create<InvoicesState>((set, get) => ({
   invoices: [],
   archivedInvoices: [],
-  isLoaded: false,
 
   fetchInvoices: async () => {
-    if (get().isLoaded) return;
-    
     const { ok, data } = await apiCall<any>('/api/invoices');
     if (ok && data) {
-      const invoices = data.invoices || data.data?.invoices || [];
-      set({ invoices, isLoaded: true });
+      const invoices = data.invoices || [];
+      set({ invoices });
     }
   },
 
@@ -333,7 +283,7 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       body: JSON.stringify(invoice),
     });
     if (ok) {
-      set({ isLoaded: false }); // Force refetch
+      // Refetch to get the latest data
       await get().fetchInvoices();
     }
   },
@@ -344,9 +294,8 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       body: JSON.stringify(invoice),
     });
     if (ok) {
-      set(state => ({
-        invoices: state.invoices.map(inv => inv.id === id ? { ...inv, ...invoice } : inv)
-      }));
+      // Refetch to get the latest data
+      await get().fetchInvoices();
     }
   },
 
@@ -356,18 +305,16 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       body: JSON.stringify({ status }),
     });
     if (ok) {
-      set(state => ({
-        invoices: state.invoices.map(inv => inv.id === id ? { ...inv, status } : inv)
-      }));
+      // Refetch to get the latest data
+      await get().fetchInvoices();
     }
   },
 
   deleteInvoice: async (id) => {
     const { ok } = await apiCall(`/api/invoices/${id}`, { method: 'DELETE' });
     if (ok) {
-      set(state => ({
-        invoices: state.invoices.filter(inv => inv.id !== id)
-      }));
+      // Refetch to get the latest data
+      await get().fetchInvoices();
     }
   },
 
@@ -424,4 +371,47 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
   },
 
   getRecentInvoices: () => get().invoices.slice(0, 10),
+}));
+
+
+// ============================================================================
+// Labor Store - Always fetch fresh data, no caching
+// ============================================================================
+export const useLaborStore = create<LaborState>((set, get) => ({
+  laborCharges: [],
+
+  fetchLaborCharges: async () => {
+    const { ok, data } = await apiCall<any>('/api/labor');
+    if (ok && data) {
+      const laborCharges = data.labor || [];
+      set({ laborCharges });
+    }
+  },
+
+  addLaborCharge: async (labor) => {
+    const { ok } = await apiCall('/api/labor', {
+      method: 'POST',
+      body: JSON.stringify(labor),
+    });
+    if (ok) {
+      await get().fetchLaborCharges();
+    }
+  },
+
+  updateLaborCharge: async (id, labor) => {
+    const { ok } = await apiCall(`/api/labor/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(labor),
+    });
+    if (ok) {
+      await get().fetchLaborCharges();
+    }
+  },
+
+  deleteLaborCharge: async (id) => {
+    const { ok } = await apiCall(`/api/labor/${id}`, { method: 'DELETE' });
+    if (ok) {
+      await get().fetchLaborCharges();
+    }
+  },
 }));

@@ -201,6 +201,33 @@ function generateBillingSection(invoice: Invoice): string {
 }
 
 function generateItemsTable(invoice: Invoice): string {
+  const allItems = [
+    // Product items with tax
+    ...invoice.items.map((item, idx) => ({
+      type: 'product',
+      description: item.productName,
+      subDescription: item.description,
+      hsnSac: item.hsnSac || '-',
+      quantity: item.quantity,
+      rate: item.unitPrice,
+      taxRate: `${item.taxRate}%`,
+      amount: item.total,
+      idx
+    })),
+    // Manpower charges without tax
+    ...(invoice.manpowerCharges || []).map((item, idx) => ({
+      type: 'manpower',
+      description: item.description,
+      subDescription: '',
+      hsnSac: '-',
+      quantity: item.quantity,
+      rate: item.rate,
+      taxRate: '-',
+      amount: item.amount,
+      idx: invoice.items.length + idx
+    }))
+  ];
+
   return `
     <div style="margin-bottom: 16px; overflow-x: auto;">
       <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
@@ -215,17 +242,17 @@ function generateItemsTable(invoice: Invoice): string {
           </tr>
         </thead>
         <tbody>
-          ${invoice.items.map((item, idx) => `
-            <tr style="background: ${idx % 2 === 0 ? COLORS.white : COLORS.grayAlt};">
+          ${allItems.map((item) => `
+            <tr style="background: ${item.idx % 2 === 0 ? COLORS.white : COLORS.grayAlt};">
               <td style="padding: 8px;">
-                <p style="font-weight: 500; margin: 0; color: ${COLORS.foreground};">${item.productName}</p>
-                ${item.description ? `<p style="font-size: 11px; color: ${COLORS.muted}; margin: 0;">${item.description}</p>` : ''}
+                <p style="font-weight: 500; margin: 0; color: ${COLORS.foreground};">${item.description}</p>
+                ${item.subDescription ? `<p style="font-size: 11px; color: ${COLORS.muted}; margin: 0;">${item.subDescription}</p>` : ''}
               </td>
-              <td style="text-align: center; padding: 8px; color: ${COLORS.foreground}; font-weight: 500;">${item.hsnSac || '-'}</td>
+              <td style="text-align: center; padding: 8px; color: ${COLORS.foreground}; font-weight: 500;">${item.hsnSac}</td>
               <td style="text-align: center; padding: 8px; color: ${COLORS.foreground};">${item.quantity}</td>
-              <td style="text-align: right; padding: 8px; color: ${COLORS.foreground};">${formatCurrency(item.unitPrice)}</td>
-              <td style="text-align: right; padding: 8px; color: ${COLORS.foreground};">${item.taxRate}%</td>
-              <td style="text-align: right; padding: 8px; font-weight: 600; color: ${COLORS.foreground};">${formatCurrency(item.total)}</td>
+              <td style="text-align: right; padding: 8px; color: ${COLORS.foreground};">${formatCurrency(item.rate)}</td>
+              <td style="text-align: right; padding: 8px; color: ${COLORS.foreground};">${item.taxRate}</td>
+              <td style="text-align: right; padding: 8px; font-weight: 600; color: ${COLORS.foreground};">${formatCurrency(item.amount)}</td>
             </tr>
           `).join('')}
         </tbody>

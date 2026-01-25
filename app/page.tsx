@@ -17,14 +17,12 @@ export default function Dashboard() {
   // ✅ GOOD: Only subscribe to what you need
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   
-  // ✅ GOOD: Lazy load data only when dashboard mounts
+  // ✅ Load data on demand
   const invoices = useInvoicesStore(state => state.invoices);
   const fetchInvoices = useInvoicesStore(state => state.fetchInvoices);
-  const isInvoicesLoaded = useInvoicesStore(state => state.isLoaded);
   
   const clients = useClientsStore(state => state.clients);
   const fetchClients = useClientsStore(state => state.fetchClients);
-  const isClientsLoaded = useClientsStore(state => state.isLoaded);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,14 +30,10 @@ export default function Dashboard() {
       return;
     }
 
-    // ✅ GOOD: Load data on demand, not on login
-    if (!isInvoicesLoaded) {
-      fetchInvoices();
-    }
-    if (!isClientsLoaded) {
-      fetchClients();
-    }
-  }, [isAuthenticated, isInvoicesLoaded, isClientsLoaded, fetchInvoices, fetchClients, router]);
+    // Load data on mount
+    fetchInvoices();
+    fetchClients();
+  }, [isAuthenticated, fetchInvoices, fetchClients, router]);
 
   // ✅ GOOD: Memoize expensive calculations
   const stats = useMemo(() => {
@@ -93,27 +87,6 @@ export default function Dashboard() {
 
   if (!isAuthenticated) {
     return null;
-  }
-
-  // ✅ GOOD: Show loading state while data loads
-  if (!isInvoicesLoaded || !isClientsLoaded) {
-    return (
-      <div>
-        <PageHeader 
-          title="Dashboard" 
-          description="Overview of your billing activity"
-        />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-4">
-                <div className="h-12 bg-muted rounded"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
   }
 
   return (

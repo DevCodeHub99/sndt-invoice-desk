@@ -13,6 +13,13 @@ const InvoiceItemSchema = new Schema<InvoiceItem>({
   total: { type: Number, required: true },
 }, { _id: false });
 
+const ManpowerChargeSchema = new Schema({
+  description: { type: String, required: true },
+  quantity: { type: Number, required: true },
+  rate: { type: Number, required: true },
+  amount: { type: Number, required: true },
+}, { _id: false });
+
 const InvoiceSchema = new Schema<InvoiceType>({
   id: { type: String, required: true, unique: true },
   userId: { type: String, required: true, index: true }, // User isolation
@@ -25,10 +32,12 @@ const InvoiceSchema = new Schema<InvoiceType>({
   placeOfSupply: String,
   isInterState: { type: Boolean, default: false },
   items: [InvoiceItemSchema],
+  manpowerCharges: [ManpowerChargeSchema], // Labor costs without GST
   subtotal: { type: Number, required: true },
   cgst: { type: Number, default: 0 },
   sgst: { type: Number, default: 0 },
   igst: { type: Number, default: 0 },
+  manpowerTotal: { type: Number, default: 0 }, // Total manpower charges
   roundOff: { type: Number, default: 0 },
   total: { type: Number, required: true },
   status: { 
@@ -48,4 +57,9 @@ InvoiceSchema.index({ userId: 1, status: 1 });
 InvoiceSchema.index({ userId: 1, createdAt: -1 });
 InvoiceSchema.index({ userId: 1, dueDate: 1 });
 
-export const InvoiceModel: Model<InvoiceType> = mongoose.models.Invoice || mongoose.model<InvoiceType>('Invoice', InvoiceSchema);
+// Delete cached model to ensure schema updates are applied
+if (mongoose.models.Invoice) {
+  delete mongoose.models.Invoice;
+}
+
+export const InvoiceModel: Model<InvoiceType> = mongoose.model<InvoiceType>('Invoice', InvoiceSchema);

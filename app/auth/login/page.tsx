@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Mail, Lock } from 'lucide-react';
-import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -64,9 +63,10 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="test@example.com"
               icon={Mail}
               required
+              autoFocus
             />
 
             <Input
@@ -85,11 +85,8 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 pt-6 border-t">
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{' '}
-              <Link href="/auth/register" className="text-primary hover:underline font-medium">
-                Create one
-              </Link>
+            <p className="text-center text-xs text-muted-foreground">
+              Admin access only. Contact system administrator for credentials.
             </p>
           </div>
         </div>

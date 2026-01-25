@@ -4,13 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/store-mongodb';
-import { LayoutDashboard, Package, Building2, FileText, Settings, Plus, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Building2, FileText, Settings, Plus, Menu, X, LogOut, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Products', href: '/products', icon: Package },
   { name: 'Clients', href: '/clients', icon: Building2 },
+  { name: 'Labor', href: '/labor', icon: Wrench },
   { name: 'Invoices', href: '/invoices', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

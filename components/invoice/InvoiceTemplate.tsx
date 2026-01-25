@@ -36,8 +36,11 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
           {/* Billing Information */}
           <BillingSection invoice={invoice} />
 
-          {/* Items Table */}
-          <ItemsTable items={invoice.items} />
+          {/* Items Table - Combined Products and Manpower */}
+          <ItemsTable 
+            items={invoice.items} 
+            manpowerCharges={invoice.manpowerCharges}
+          />
 
           {/* Totals and Notes */}
           <TotalsSection 
@@ -175,8 +178,11 @@ function BillingSection({ invoice }: { invoice: Invoice }) {
   );
 }
 
-// Items Table
-function ItemsTable({ items }: { items: Invoice['items'] }) {
+// Items Table - Combined Products and Manpower
+function ItemsTable({ items, manpowerCharges }: { 
+  items: Invoice['items'];
+  manpowerCharges?: Invoice['manpowerCharges'];
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -191,6 +197,7 @@ function ItemsTable({ items }: { items: Invoice['items'] }) {
           </tr>
         </thead>
         <tbody>
+          {/* Product Items */}
           {items.map((item, idx) => (
             <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-muted/10'}>
               <td className="py-2 px-2">
@@ -207,6 +214,20 @@ function ItemsTable({ items }: { items: Invoice['items'] }) {
               <td className="text-right py-2 px-2 text-foreground">{item.taxRate}%</td>
               <td className="text-right py-2 px-2 font-semibold text-foreground">
                 {formatCurrency(item.total)}
+              </td>
+            </tr>
+          ))}
+          
+          {/* Manpower Charges - No GST */}
+          {manpowerCharges && manpowerCharges.length > 0 && manpowerCharges.map((item, idx) => (
+            <tr key={`manpower-${idx}`} className={(items.length + idx) % 2 === 0 ? 'bg-white' : 'bg-muted/10'}>
+              <td className="py-2 px-2 font-medium text-foreground">{item.description}</td>
+              <td className="text-center py-2 px-2 text-foreground font-medium">-</td>
+              <td className="text-center py-2 px-2 text-foreground">{item.quantity}</td>
+              <td className="text-right py-2 px-2 text-foreground">{formatCurrency(item.rate)}</td>
+              <td className="text-right py-2 px-2 text-foreground">-</td>
+              <td className="text-right py-2 px-2 font-semibold text-foreground">
+                {formatCurrency(item.amount)}
               </td>
             </tr>
           ))}

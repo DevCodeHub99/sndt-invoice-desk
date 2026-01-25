@@ -11,10 +11,7 @@ interface SearchableSelectProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  threshold?: number; // Switch to search at this item count (default: 10)
 }
-
-const DEFAULT_THRESHOLD = 10;
 
 export function SearchableSelect({
   label,
@@ -23,22 +20,16 @@ export function SearchableSelect({
   value,
   onChange,
   placeholder = 'Select an option...',
-  threshold = DEFAULT_THRESHOLD,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Determine if we should use search mode
-  const useSearchMode = options.length > threshold;
-
   // Filter options based on search term
-  const filteredOptions = useSearchMode
-    ? options.filter((opt) =>
-        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : options;
+  const filteredOptions = options.filter((opt) =>
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const selectedLabel = options.find((opt) => opt.value === value)?.label;
 
@@ -50,6 +41,7 @@ export function SearchableSelect({
         !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setSearchTerm('');
       }
     }
 
@@ -57,12 +49,12 @@ export function SearchableSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Focus search input when dropdown opens
+  // Focus input when dropdown opens
   useEffect(() => {
-    if (isOpen && useSearchMode && inputRef.current) {
+    if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [isOpen, useSearchMode]);
+  }, [isOpen]);
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
@@ -76,7 +68,21 @@ export function SearchableSelect({
     setSearchTerm('');
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    if (!isOpen) {
+      setIsOpen(true);
+    }
+  };
+
+  const handleInputClick = () => {
+    setIsOpen(true);
+  };
+
   const selectId = label?.toLowerCase().replace(/\s+/g, '-');
+
+  // Display value: show selected label when not searching, show search term when typing
+  const displayValue = isOpen ? searchTerm : (selectedLabel || '');
 
   return (
     <div className="space-y-1.5">
@@ -87,66 +93,57 @@ export function SearchableSelect({
       )}
 
       <div ref={containerRef} className="relative">
-        {/* Trigger Button */}
-        <button
-          type="button"
-          id={selectId}
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            'w-full h-10 px-3 rounded-lg border bg-card text-foreground transition-colors',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
-            'flex items-center justify-between',
-            error && 'border-danger focus:ring-danger',
-            isOpen && 'ring-2 ring-primary border-primary'
-          )}
-        >
-          <span className={cn(
-            'text-sm',
-            !value && 'text-muted-foreground'
-          )}>
-            {selectedLabel || placeholder}
-          </span>
-          <div className="flex items-center gap-1">
-            {value && (
-              <X
-                className="w-4 h-4 text-muted-foreground hover:text-foreground"
-                onClick={handleClear}
-              />
+        {/* Searchable Input */}
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            id={selectId}
+            value={displayValue}
+            onChange={handleInputChange}
+            onClick={handleInputClick}
+            placeholder={placeholder}
+            className={cn(
+              'w-full h-10 px-3 pr-20 rounded-lg border border-border bg-card text-foreground transition-all text-sm',
+              'focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20',
+              'hover:border-border/80',
+              error && 'border-danger/50 focus:border-danger focus:ring-danger/20',
+              isOpen && 'border-primary/50 ring-1 ring-primary/20'
             )}
-            <ChevronDown
-              className={cn(
-                'w-4 h-4 text-muted-foreground transition-transform',
-                isOpen && 'rotate-180'
-              )}
-            />
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {value && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="p-1 hover:bg-muted rounded"
+              >
+                <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-1 hover:bg-muted rounded"
+            >
+              <ChevronDown
+                className={cn(
+                  'w-4 h-4 text-muted-foreground transition-transform',
+                  isOpen && 'rotate-180'
+                )}
+              />
+            </button>
           </div>
-        </button>
+        </div>
 
         {/* Dropdown Menu */}
         {isOpen && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50">
-            {/* Search Input (only in search mode) */}
-            {useSearchMode && (
-              <div className="p-2 border-b">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={cn(
-                    'w-full h-9 px-3 rounded-lg border bg-card text-foreground text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
-                  )}
-                />
-              </div>
-            )}
-
             {/* Options List */}
             <div className="max-h-64 overflow-y-auto">
               {filteredOptions.length === 0 ? (
                 <div className="p-3 text-sm text-muted-foreground text-center">
-                  {useSearchMode ? 'No results found' : 'No options available'}
+                  No results found
                 </div>
               ) : (
                 filteredOptions.map((option) => (
