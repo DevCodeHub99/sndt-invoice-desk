@@ -16,6 +16,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   verifyAuth: () => Promise<boolean>;
+  updateBusinessDetails: (businessDetails: Partial<BusinessDetails>) => Promise<boolean>;
 }
 
 // Products Store - Always fetch fresh data
@@ -152,6 +153,22 @@ export const useAuthStore = create<AuthState>()(
         }
 
         return true;
+      },
+
+      updateBusinessDetails: async (businessDetails: Partial<BusinessDetails>) => {
+        const currentUser = get().currentUser;
+        if (!currentUser) return false;
+
+        const { ok, data } = await apiCall<any>(`/api/user/${currentUser.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ businessDetails }),
+        });
+
+        if (ok && data?.user) {
+          set({ currentUser: data.user });
+          return true;
+        }
+        return false;
       },
     }),
     {
