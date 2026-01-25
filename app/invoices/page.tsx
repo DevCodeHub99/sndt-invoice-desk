@@ -22,16 +22,13 @@ export default function InvoicesPage() {
   const fetchArchivedInvoices = useInvoicesStore(state => state.fetchArchivedInvoices);
   const downloadArchivedInvoices = useInvoicesStore(state => state.downloadArchivedInvoices);
   const downloadArchivedInvoicesJSON = useInvoicesStore(state => state.downloadArchivedInvoicesJSON);
-  const isLoaded = useInvoicesStore(state => state.isLoaded);
   
   useEffect(() => {
-    if (!isLoaded) {
-      fetchInvoices();
-    }
+    fetchInvoices();
     fetchArchivedInvoices();
     const timer = setTimeout(() => setMounted(true), 0);
     return () => clearTimeout(timer);
-  }, [isLoaded, fetchInvoices, fetchArchivedInvoices]);
+  }, [fetchInvoices, fetchArchivedInvoices]);
 
   const handleDownloadArchive = async (format: 'csv' | 'json') => {
     setIsDownloading(true);
