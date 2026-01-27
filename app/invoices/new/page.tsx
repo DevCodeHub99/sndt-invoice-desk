@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { formatCurrency, calculateItemTotal, getStateFromGSTIN } from '@/lib/utils';
+import { formatCurrency, getStateFromGSTIN } from '@/lib/utils';
 import { Plus, Trash2, ArrowLeft, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
@@ -52,6 +52,7 @@ export default function NewInvoicePage() {
   const [manpowerItems, setManpowerItems] = useState<ManpowerItem[]>([]);
   const [notes, setNotes] = useState('');
   const [dueInDays, setDueInDays] = useState('30');
+  const [advancePayment, setAdvancePayment] = useState<string>('');
 
   // Fetch clients and products on mount
   useEffect(() => {
@@ -140,6 +141,11 @@ export default function NewInvoicePage() {
     const totalTax = totalCgst + totalSgst + totalIgst;
     const total = subtotal + totalTax + manpowerTotal;
     const roundOff = Math.round(total) - total;
+    const finalTotal = Math.round(total);
+
+    // Calculate advance payment and balance due
+    const advance = advancePayment ? (parseFloat(advancePayment) || 0) : 0;
+    const balanceDue = Math.max(0, finalTotal - advance);
 
     return {
       subtotal,
@@ -148,12 +154,14 @@ export default function NewInvoicePage() {
       igst: totalIgst,
       manpowerTotal,
       roundOff,
-      total: Math.round(total),
+      total: finalTotal,
+      advancePayment: advance,
+      balanceDue,
       isInterState: isInterState || false,
       businessState,
       clientState
     };
-  }, [invoiceItems, manpowerItems, selectedClient, currentUser?.businessDetails?.taxId]);
+  }, [invoiceItems, manpowerItems, selectedClient, currentUser?.businessDetails?.taxId, advancePayment]);
 
   const addLineItem = () => {
     setLineItems([...lineItems, {
@@ -270,7 +278,9 @@ export default function NewInvoicePage() {
       manpowerTotal: totals.manpowerTotal > 0 ? totals.manpowerTotal : undefined,
       roundOff: totals.roundOff,
       total: totals.total,
-      status: 'pending',
+      advancePayment: totals.advancePayment > 0 ? totals.advancePayment : undefined,
+      balanceDue: totals.advancePayment > 0 ? totals.balanceDue : undefined,
+      status: totals.advancePayment > 0 ? (totals.balanceDue === 0 ? 'paid' : 'partial') : 'pending',
       notes,
       dueDate,
     });
@@ -454,7 +464,6 @@ export default function NewInvoicePage() {
                   <div className="space-y-3">
                     {manpowerItems.map((item, index) => {
                       const labor = laborCharges.find(l => l.id === item.laborId);
-                      const isPerUnit = labor?.rateType === 'per_unit';
                       const calculatedAmount = typeof item.amount === 'string'
                         ? (parseFloat(item.amount) || 0)
                         : (item.amount || 0);
@@ -481,7 +490,7 @@ export default function NewInvoicePage() {
                                 placeholder="Select labor charge..."
                               />
                             </div>
-                            
+
                             {/* Price Field - Always editable */}
                             <div className="w-24 sm:w-28">
                               <Input
@@ -504,7 +513,7 @@ export default function NewInvoicePage() {
                                 placeholder="0.00"
                               />
                             </div>
-                            
+
                             {/* Quantity Field - Always visible */}
                             <div className="w-20 sm:w-24">
                               <Input
@@ -527,7 +536,7 @@ export default function NewInvoicePage() {
                                 placeholder="1"
                               />
                             </div>
-                            
+
                             {/* Delete Button */}
                             <button
                               type="button"
@@ -538,7 +547,7 @@ export default function NewInvoicePage() {
                               <Trash2 className="w-4 h-4 text-danger" />
                             </button>
                           </div>
-                          
+
                           {/* Calculation Display */}
                           {labor && (
                             <div className="text-xs text-muted-foreground pt-2 border-t">
@@ -607,46 +616,92 @@ export default function NewInvoicePage() {
                   </div>
                 )}
 
-                <div className="space-y-3">
+                <div className="space-y-2">
+                  {/* Step 1: Taxable Items */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">{formatCurrency(totals.subtotal)}</span>
+                    <span className="text-muted-foreground">Taxable Amount</span>
+                    <span className="text-foreground font-medium">{formatCurrency(totals.subtotal)}</span>
                   </div>
+                  
+                  {/* Step 2: Tax Breakdown */}
                   {totals.cgst > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">CGST (9%)</span>
+                    <div className="flex justify-between text-sm pl-3">
+                      <span className="text-muted-foreground">CGST @ 9%</span>
                       <span className="text-foreground">{formatCurrency(totals.cgst)}</span>
                     </div>
                   )}
                   {totals.sgst > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">SGST (9%)</span>
+                    <div className="flex justify-between text-sm pl-3">
+                      <span className="text-muted-foreground">SGST @ 9%</span>
                       <span className="text-foreground">{formatCurrency(totals.sgst)}</span>
                     </div>
                   )}
                   {totals.igst > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">IGST (18%)</span>
+                    <div className="flex justify-between text-sm pl-3">
+                      <span className="text-muted-foreground">IGST @ 18%</span>
                       <span className="text-foreground">{formatCurrency(totals.igst)}</span>
                     </div>
                   )}
+                  
+                  {/* Step 3: Non-Taxable Items */}
                   {totals.manpowerTotal > 0 && (
-                    <div className="flex justify-between text-sm border-t pt-3">
-                      <span className="text-muted-foreground">Manpower Charges</span>
-                      <span className="text-foreground">{formatCurrency(totals.manpowerTotal)}</span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Other Charges (No GST)</span>
+                      <span className="text-foreground font-medium">{formatCurrency(totals.manpowerTotal)}</span>
                     </div>
                   )}
+                  
+                  {/* Step 4: Round Off */}
                   {totals.roundOff !== 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Round Off</span>
                       <span className="text-foreground">{formatCurrency(totals.roundOff)}</span>
                     </div>
                   )}
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-foreground">Total</span>
-                      <span className="text-xl font-semibold text-foreground">{formatCurrency(totals.total)}</span>
-                    </div>
+                  
+                  {/* Separator */}
+                  <div className="border-t-2 border-gray-300 my-2"></div>
+                  
+                  {/* Step 5: Total */}
+                  <div className="flex justify-between bg-gray-100 -mx-4 px-4 py-2 rounded">
+                    <span className="font-bold text-foreground">TOTAL</span>
+                    <span className="text-2xl font-bold text-foreground">{formatCurrency(totals.total)}</span>
+                  </div>
+
+                  {/* Step 6: Advance Payment Section */}
+                  <div className="border-t-2 border-gray-300 pt-3 mt-3">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Advance Payment Received
+                    </label>
+                    <Input
+                      type="text"
+                      value={advancePayment}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                          setAdvancePayment(value);
+                        }
+                      }}
+                      placeholder="Enter advance amount..."
+                      className="mb-2"
+                    />
+                    {totals.advancePayment > 0 && (
+                      <div className="space-y-2 mt-3">
+                        <div className="flex justify-between text-sm border-t border-dashed border-gray-300 pt-2">
+                          <span className="text-muted-foreground">Less: Advance Received</span>
+                          <span className="text-red-600 font-semibold">- {formatCurrency(totals.advancePayment)}</span>
+                        </div>
+                        
+                        {/* Separator */}
+                        <div className="border-t-2 border-foreground my-2"></div>
+                        
+                        {/* Step 7: Balance Due */}
+                        <div className="flex justify-between bg-gray-100 -mx-4 px-4 py-3 rounded">
+                          <span className="text-foreground font-bold">BALANCE DUE</span>
+                          <span className="text-2xl text-foreground font-bold">{formatCurrency(totals.balanceDue)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

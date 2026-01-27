@@ -1,5 +1,6 @@
 import { Invoice, User } from './types';
 import { formatCurrency, formatDate, numberToWords, getStateFromGSTIN } from './utils';
+import { generateUPIQRCode } from './qr-generator';
 
 /**
  * Invoice PDF Generator
@@ -7,7 +8,7 @@ import { formatCurrency, formatDate, numberToWords, getStateFromGSTIN } from './
  * Maintains consistent styling with the dashboard preview
  */
 
-// Color constants matching the dashboard theme
+// Color constants - consistent neutral theme (no blue)
 const COLORS = {
   foreground: '#222831',
   muted: '#393E46',
@@ -15,16 +16,42 @@ const COLORS = {
   black: '#000000',
   white: '#ffffff',
   grayBg: '#f3f4f6',
+  grayLight: '#f9fafb',
   grayAlt: 'rgba(229, 229, 229, 0.1)',
+  // Danger red for deductions
+  danger: '#dc2626', // red-600
+  dangerLight: '#fee2e2', // red-50
 } as const;
 
 export async function generateInvoicePDF(invoice: Invoice, currentUser: User | undefined) {
   const html2canvas = (await import('html2canvas')).default;
-  const jsPDF = (await import('jspdf')).jsPDF;
+  const { jsPDF } = await import('jspdf');
+
+  // Pre-generate QR code if UPI ID is available (no amount - user pays custom amount)
+  let qrCodeDataUrl: string | null = null;
+  const upiId = currentUser?.businessDetails?.upiId;
+  const payeeName = currentUser?.businessDetails?.companyName;
+
+  if (upiId && payeeName) {
+    try {
+      qrCodeDataUrl = await generateUPIQRCode({
+        upiId,
+        payeeName,
+        // No amount - customer enters their own amount when paying
+        transactionNote: `Payment for Invoice ${invoice.invoiceNumber}`,
+        transactionRef: invoice.invoiceNumber,
+      }, {
+        width: 120,
+        margin: 1,
+      });
+    } catch (err) {
+      console.error('Failed to generate QR code for PDF:', err);
+    }
+  }
 
   const container = createPDFContainer();
-  container.innerHTML = generateInvoiceHTML(invoice, currentUser);
-  
+  container.innerHTML = generateInvoiceHTML(invoice, currentUser, qrCodeDataUrl);
+
   document.body.appendChild(container);
 
   try {
@@ -59,7 +86,8 @@ function createPDFContainer(): HTMLDivElement {
 }
 
 function createPDFDocument() {
-  return new (require('jspdf').jsPDF)({
+  const { jsPDF } = require('jspdf');
+  return new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
@@ -74,9 +102,12 @@ function addImageToPDF(pdf: any, canvas: HTMLCanvasElement) {
   pdf.addImage(imgData, 'JPEG', 5, 5, imgWidth, imgHeight);
 }
 
-function generateInvoiceHTML(invoice: Invoice, currentUser: User | undefined): string {
+function generateInvoiceHTML(invoice: Invoice, currentUser: User | undefined, qrCodeDataUrl: string | null): string {
   const roundOff = Math.round(invoice.total) - invoice.total;
   const finalTotal = Math.round(invoice.total);
+  const hasAdvance = invoice.advancePayment && invoice.advancePayment > 0;
+  const advanceAmount = invoice.advancePayment || 0;
+  const balanceDue = hasAdvance ? (invoice.balanceDue ?? (finalTotal - advanceAmount)) : finalTotal;
 
   return `
     <div style="font-family: Arial, sans-serif; color: ${COLORS.foreground}; background: ${COLORS.white}; padding: 0;">
@@ -86,8 +117,8 @@ function generateInvoiceHTML(invoice: Invoice, currentUser: User | undefined): s
           ${generateBillingSection(invoice)}
           ${generateItemsTable(invoice)}
           ${generateTotalsSection(invoice, roundOff, finalTotal)}
-          ${generateAmountInWords(finalTotal)}
-          ${generatePaymentDetails(currentUser)}
+          ${generateAmountInWords(hasAdvance ? balanceDue : finalTotal, hasAdvance || false)}
+          ${generatePaymentDetails(currentUser, qrCodeDataUrl)}
           ${generateFooterNotice(currentUser)}
         </div>
       </div>
@@ -262,6 +293,14 @@ function generateItemsTable(invoice: Invoice): string {
 }
 
 function generateTotalsSection(invoice: Invoice, roundOff: number, finalTotal: number): string {
+  const hasAdvance = invoice.advancePayment && invoice.advancePayment > 0;
+  const advanceAmount = invoice.advancePayment || 0;
+  const balanceDue = hasAdvance ? (invoice.balanceDue ?? (finalTotal - advanceAmount)) : finalTotal;
+
+  // Calculate totals for clear breakdown
+  const taxableAmount = invoice.subtotal; // Items with GST
+  const nonTaxableAmount = invoice.manpowerTotal || 0; // Items without GST
+
   return `
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
       <div>
@@ -273,16 +312,49 @@ function generateTotalsSection(invoice: Invoice, roundOff: number, finalTotal: n
         ` : ''}
       </div>
       <div></div>
-      <div style="font-size: 12px; border-left: 2px solid ${COLORS.black}; padding-left: 16px;">
-        ${generateTotalLine('Subtotal', invoice.subtotal)}
-        ${invoice.cgst > 0 ? generateTotalLine('CGST (9%)', invoice.cgst) : ''}
-        ${invoice.sgst > 0 ? generateTotalLine('SGST (9%)', invoice.sgst) : ''}
-        ${invoice.igst > 0 ? generateTotalLine('IGST (18%)', invoice.igst) : ''}
+      <div style="font-size: 12px; border-left: 2px solid ${COLORS.black}; padding-left: 16px; line-height: 1.4;">
+        <!-- Step 1: Taxable Amount -->
+        ${generateTotalLine('Taxable Amount', taxableAmount)}
+        
+        <!-- Step 2: Tax Breakdown (indented) -->
+        ${invoice.cgst > 0 ? generateTotalLine('  CGST @ 9%', invoice.cgst) : ''}
+        ${invoice.sgst > 0 ? generateTotalLine('  SGST @ 9%', invoice.sgst) : ''}
+        ${invoice.igst > 0 ? generateTotalLine('  IGST @ 18%', invoice.igst) : ''}
+        
+        <!-- Step 3: Non-Taxable Items -->
+        ${nonTaxableAmount > 0 ? generateTotalLine('Other Charges (No GST)', nonTaxableAmount) : ''}
+        
+        <!-- Step 4: Round Off -->
         ${roundOff !== 0 ? generateTotalLine('Round Off', roundOff) : ''}
-        <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid ${COLORS.black}; font-weight: bold;">
-          <span style="color: ${COLORS.foreground};">TOTAL</span>
-          <span style="font-size: 18px; color: ${COLORS.foreground}; font-weight: bold;">${formatCurrency(finalTotal)}</span>
+        
+        <!-- Separator -->
+        <div style="border-top: 2px solid ${COLORS.black}; margin: 8px 0;"></div>
+        
+        <!-- Step 5: TOTAL -->
+        <div style="display: flex; justify-content: space-between; padding: 8px; margin: 0 -16px; background: ${COLORS.grayBg}; font-weight: bold;">
+          <span style="color: ${COLORS.foreground}; font-size: 13px;">TOTAL</span>
+          <span style="font-size: 20px; color: ${COLORS.foreground}; font-weight: bold;">${formatCurrency(finalTotal)}</span>
         </div>
+        
+        ${hasAdvance ? `
+          <!-- Separator -->
+          <div style="border-top: 1px dashed ${COLORS.border}; margin: 8px 0;"></div>
+          
+          <!-- Step 6: Advance Payment -->
+          <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+            <span style="color: ${COLORS.muted};">Less: Advance Received</span>
+            <span style="color: ${COLORS.foreground}; font-weight: 600;">- ${formatCurrency(advanceAmount)}</span>
+          </div>
+          
+          <!-- Separator -->
+          <div style="border-top: 2px solid ${COLORS.foreground}; margin: 8px 0;"></div>
+          
+          <!-- Step 7: BALANCE DUE -->
+          <div style="display: flex; justify-content: space-between; padding: 10px; margin: 0 -16px; background: ${COLORS.grayLight}; border-radius: 4px;">
+            <span style="color: ${COLORS.foreground}; font-weight: bold; font-size: 13px;">BALANCE DUE</span>
+            <span style="font-size: 22px; color: ${COLORS.foreground}; font-weight: bold;">${formatCurrency(balanceDue)}</span>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -297,28 +369,59 @@ function generateTotalLine(label: string, amount: number): string {
   `;
 }
 
-function generateAmountInWords(amount: number): string {
+function generateAmountInWords(amount: number, isBalanceDue: boolean = false): string {
+  const bgColor = isBalanceDue ? COLORS.grayLight : COLORS.grayBg;
+  const borderColor = COLORS.foreground;
+  const textColor = COLORS.foreground;
+  const label = isBalanceDue ? 'Balance Due in Words: ' : 'Amount in Words: ';
+
   return `
-    <div style="background: ${COLORS.grayBg}; border-left: 4px solid ${COLORS.black}; padding: 12px; border-radius: 4px; font-size: 12px; margin-bottom: 16px;">
-      <p style="color: ${COLORS.foreground}; margin: 0;">
-        <span style="font-weight: 600;">Amount in Words: </span>
+    <div style="background: ${bgColor}; border-left: 4px solid ${borderColor}; padding: 12px; border-radius: 4px; font-size: 12px; margin-bottom: 16px;">
+      <p style="color: ${textColor}; margin: 0;">
+        <span style="font-weight: 600;">${label}</span>
         <span style="font-weight: 500;">${numberToWords(amount)}</span>
       </p>
     </div>
   `;
 }
 
-function generatePaymentDetails(currentUser: User | undefined): string {
+function generatePaymentDetails(currentUser: User | undefined, qrCodeDataUrl: string | null): string {
+  const hasBankDetails = currentUser?.businessDetails?.bankName ||
+    currentUser?.businessDetails?.accountNumber ||
+    currentUser?.businessDetails?.ifscCode;
+
+  const hasUpiId = currentUser?.businessDetails?.upiId;
+
+  // Don't render if no payment details
+  if (!hasBankDetails && !hasUpiId) {
+    return '';
+  }
+
   return `
     <div style="border-top: 2px solid ${COLORS.foreground}; padding-top: 16px; margin-top: 16px;">
       <p style="font-weight: bold; color: ${COLORS.foreground}; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; margin: 0 0 12px 0;">
         Payment Details
       </p>
-      <div style="font-size: 12px; line-height: 1.8;">
-        ${currentUser?.businessDetails?.bankName ? generatePaymentLine('Bank Name', currentUser.businessDetails.bankName) : ''}
-        ${currentUser?.businessDetails?.accountHolderName ? generatePaymentLine('Account Holder', currentUser.businessDetails.accountHolderName) : ''}
-        ${currentUser?.businessDetails?.accountNumber ? generatePaymentLine('Account Number', currentUser.businessDetails.accountNumber, true) : ''}
-        ${currentUser?.businessDetails?.ifscCode ? generatePaymentLine('IFSC Code', currentUser.businessDetails.ifscCode, true) : ''}
+      <div style="display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 32px;">
+        <!-- Left Side: Bank Details -->
+        <div style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+          ${currentUser?.businessDetails?.bankName ? generatePaymentLine('Bank Name', currentUser.businessDetails.bankName) : ''}
+          ${currentUser?.businessDetails?.accountHolderName ? generatePaymentLine('Account Holder', currentUser.businessDetails.accountHolderName) : ''}
+          ${currentUser?.businessDetails?.accountNumber ? generatePaymentLine('Account Number', currentUser.businessDetails.accountNumber, true) : ''}
+          ${currentUser?.businessDetails?.ifscCode ? generatePaymentLine('IFSC Code', currentUser.businessDetails.ifscCode, true) : ''}
+        </div>
+        <!-- Right Side: UPI QR Code -->
+        ${hasUpiId && qrCodeDataUrl ? `
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <p style="font-size: 12px; color: ${COLORS.muted}; font-weight: 500; margin: 0 0 8px 0;">Scan to Pay</p>
+            <div style="border: 1px solid ${COLORS.border}; border-radius: 8px; padding: 8px; background: ${COLORS.white}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <img src="${qrCodeDataUrl}" alt="UPI Payment QR Code" style="width: 128px; height: 128px; display: block;" />
+            </div>
+            <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px; color: ${COLORS.muted};">${currentUser?.businessDetails?.upiId}</span>
+            </div>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -326,8 +429,8 @@ function generatePaymentDetails(currentUser: User | undefined): string {
 
 function generatePaymentLine(label: string, value: string, mono: boolean = false): string {
   return `
-    <div style="display: flex; justify-content: space-between;">
-      <span style="color: ${COLORS.muted}; font-weight: 500;">${label}</span>
+    <div style="display: flex; align-items: center;">
+      <span style="color: ${COLORS.muted}; width: 110px; flex-shrink: 0;">${label}</span>
       <span style="color: ${COLORS.foreground}; font-weight: 600; ${mono ? 'font-family: monospace;' : ''}">${value}</span>
     </div>
   `;

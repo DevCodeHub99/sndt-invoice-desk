@@ -19,6 +19,7 @@ const BusinessDetailsSchema = new Schema<BusinessDetails>({
   accountNumber: String,
   ifscCode: String,
   accountHolderName: String,
+  upiId: String, // UPI ID for payment QR code generation
 }, { _id: false });
 
 const UserSchema = new Schema<UserType>({

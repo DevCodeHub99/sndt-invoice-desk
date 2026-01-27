@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Save, Building2, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import { Save, Building2, Mail, Phone, MapPin, FileText, QrCode } from 'lucide-react';
 
 export default function SettingsPage() {
   const { currentUser, updateBusinessDetails } = useAuthStore();
@@ -28,6 +28,7 @@ export default function SettingsPage() {
     accountNumber: currentUser?.businessDetails?.accountNumber || '',
     ifscCode: currentUser?.businessDetails?.ifscCode || '',
     accountHolderName: currentUser?.businessDetails?.accountHolderName || '',
+    upiId: currentUser?.businessDetails?.upiId || '',
   });
 
   const [saved, setSaved] = useState(false);
@@ -358,6 +359,23 @@ export default function SettingsPage() {
                       onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })}
                       placeholder="SBIN0001234"
                     />
+                  </div>
+
+                  {/* UPI Payment Section */}
+                  <div className="pt-4 border-t mt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <QrCode className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-foreground">UPI Payment (for QR Code)</span>
+                    </div>
+                    <Input
+                      label="UPI ID"
+                      value={formData.upiId}
+                      onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+                      placeholder="yourname@upi or 9876543210@paytm"
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Enter your UPI ID to generate a payment QR code on invoices. Customers can scan this to pay directly.
+                    </p>
                   </div>
                 </div>
               </div>

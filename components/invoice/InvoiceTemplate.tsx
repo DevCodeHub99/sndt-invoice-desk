@@ -1,5 +1,9 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Invoice, User } from '@/lib/types';
 import { formatCurrency, formatDate, numberToWords, calculateRoundOff, getStateFromGSTIN } from '@/lib/utils';
+import { generateUPIQRCode } from '@/lib/qr-generator';
 
 interface InvoiceTemplateProps {
   invoice: Invoice;
@@ -17,10 +21,10 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
   const finalTotal = Math.round(invoice.total);
 
   return (
-    <div 
-      className={`bg-white mx-auto ${className}`} 
-      style={{ 
-        color: '#222831', 
+    <div
+      className={`bg-white mx-auto ${className}`}
+      style={{
+        color: '#222831',
         backgroundColor: '#fff',
         maxWidth: '210mm', // A4 width
         minHeight: '297mm', // A4 height
@@ -37,23 +41,32 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
           <BillingSection invoice={invoice} />
 
           {/* Items Table - Combined Products and Manpower */}
-          <ItemsTable 
-            items={invoice.items} 
+          <ItemsTable
+            items={invoice.items}
             manpowerCharges={invoice.manpowerCharges}
           />
 
           {/* Totals and Notes */}
-          <TotalsSection 
-            invoice={invoice} 
-            roundOff={roundOff} 
-            finalTotal={finalTotal} 
+          <TotalsSection
+            invoice={invoice}
+            roundOff={roundOff}
+            finalTotal={finalTotal}
           />
 
           {/* Amount in Words */}
-          <AmountInWords amount={finalTotal} />
+          <AmountInWords
+            amount={invoice.advancePayment && invoice.advancePayment > 0
+              ? (invoice.balanceDue ?? finalTotal - invoice.advancePayment)
+              : finalTotal
+            }
+            isBalanceDue={Boolean(invoice.advancePayment && invoice.advancePayment > 0)}
+          />
 
-          {/* Payment Details */}
-          <PaymentDetails currentUser={currentUser} />
+          {/* Payment Details with UPI QR Code */}
+          <PaymentDetails
+            currentUser={currentUser}
+            invoiceNumber={invoice.invoiceNumber}
+          />
 
           {/* Footer Notice */}
           <FooterNotice email={currentUser?.businessDetails?.email} />
@@ -179,7 +192,7 @@ function BillingSection({ invoice }: { invoice: Invoice }) {
 }
 
 // Items Table - Combined Products and Manpower
-function ItemsTable({ items, manpowerCharges }: { 
+function ItemsTable({ items, manpowerCharges }: {
   items: Invoice['items'];
   manpowerCharges?: Invoice['manpowerCharges'];
 }) {
@@ -217,7 +230,7 @@ function ItemsTable({ items, manpowerCharges }: {
               </td>
             </tr>
           ))}
-          
+
           {/* Manpower Charges - No GST */}
           {manpowerCharges && manpowerCharges.length > 0 && manpowerCharges.map((item, idx) => (
             <tr key={`manpower-${idx}`} className={(items.length + idx) % 2 === 0 ? 'bg-white' : 'bg-muted/10'}>
@@ -238,15 +251,23 @@ function ItemsTable({ items, manpowerCharges }: {
 }
 
 // Totals Section
-function TotalsSection({ 
-  invoice, 
-  roundOff, 
-  finalTotal 
-}: { 
-  invoice: Invoice; 
-  roundOff: number; 
+function TotalsSection({
+  invoice,
+  roundOff,
+  finalTotal
+}: {
+  invoice: Invoice;
+  roundOff: number;
   finalTotal: number;
 }) {
+  const hasAdvance = invoice.advancePayment && invoice.advancePayment > 0;
+  const advanceAmount = invoice.advancePayment || 0;
+  const balanceDue = hasAdvance ? (invoice.balanceDue ?? (finalTotal - advanceAmount)) : finalTotal;
+
+  // Calculate totals for clear breakdown
+  const taxableAmount = invoice.subtotal; // Items with GST
+  const nonTaxableAmount = invoice.manpowerTotal || 0; // Items without GST
+
   return (
     <div className="grid grid-cols-3 gap-4">
       <div>
@@ -258,16 +279,51 @@ function TotalsSection({
         )}
       </div>
       <div></div>
-      <div className="space-y-2 text-xs border-l-2 border-black pl-4">
-        <TotalLine label="Subtotal" amount={invoice.subtotal} />
-        {invoice.cgst > 0 && <TotalLine label="CGST (9%)" amount={invoice.cgst} />}
-        {invoice.sgst > 0 && <TotalLine label="SGST (9%)" amount={invoice.sgst} />}
-        {invoice.igst > 0 && <TotalLine label="IGST (18%)" amount={invoice.igst} />}
+      <div className="space-y-1.5 text-xs border-l-2 border-black pl-4">
+        {/* Step 1: Taxable Items Subtotal */}
+        <TotalLine label="Taxable Amount" amount={taxableAmount} />
+        
+        {/* Step 2: Tax Breakdown */}
+        {invoice.cgst > 0 && <TotalLine label="  CGST @ 9%" amount={invoice.cgst} />}
+        {invoice.sgst > 0 && <TotalLine label="  SGST @ 9%" amount={invoice.sgst} />}
+        {invoice.igst > 0 && <TotalLine label="  IGST @ 18%" amount={invoice.igst} />}
+        
+        {/* Step 3: Non-Taxable Items (if any) */}
+        {nonTaxableAmount > 0 && (
+          <TotalLine label="Other Charges (No GST)" amount={nonTaxableAmount} />
+        )}
+        
+        {/* Step 4: Round Off (if any) */}
         {roundOff !== 0 && <TotalLine label="Round Off" amount={roundOff} />}
-        <div className="flex justify-between pt-2 border-t-2 border-black font-bold">
-          <span className="text-foreground">TOTAL</span>
-          <span className="text-lg text-foreground font-bold">{formatCurrency(finalTotal)}</span>
+        
+        {/* Separator Line */}
+        <div className="border-t-2 border-black my-2"></div>
+        
+        {/* Step 5: TOTAL INVOICE VALUE */}
+        <div className="flex justify-between py-2 font-bold bg-gray-50 -mx-4 px-4">
+          <span className="text-foreground text-sm">TOTAL</span>
+          <span className="text-xl text-foreground font-bold">{formatCurrency(finalTotal)}</span>
         </div>
+
+        {/* Step 6: Advance Payment (if any) */}
+        {hasAdvance && (
+          <>
+            <div className="border-t border-dashed border-gray-300 my-2"></div>
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Less: Advance Received</span>
+              <span className="text-red-600 font-semibold">- {formatCurrency(invoice.advancePayment!)}</span>
+            </div>
+            
+            {/* Separator Line */}
+            <div className="border-t-2 border-foreground my-2"></div>
+            
+            {/* Step 7: BALANCE DUE */}
+            <div className="flex justify-between py-2 bg-gray-100 -mx-4 px-4 rounded">
+              <span className="text-foreground font-bold text-sm">BALANCE DUE</span>
+              <span className="text-2xl text-foreground font-bold">{formatCurrency(balanceDue)}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -284,50 +340,132 @@ function TotalLine({ label, amount }: { label: string; amount: number }) {
 }
 
 // Amount in Words
-function AmountInWords({ amount }: { amount: number }) {
+function AmountInWords({ amount, isBalanceDue = false }: { amount: number; isBalanceDue?: boolean }) {
   return (
-    <div className="bg-gray-100 border-l-4 border-black p-3 rounded text-xs">
+    <div className={`${isBalanceDue ? 'bg-gray-100 border-l-4 border-foreground' : 'bg-gray-100 border-l-4 border-black'} p-3 rounded text-xs`}>
       <p className="text-foreground">
-        <span className="font-semibold">Amount in Words: </span>
+        <span className="font-semibold">{isBalanceDue ? 'Balance Due in Words: ' : 'Amount in Words: '}</span>
         <span className="font-medium">{numberToWords(amount)}</span>
       </p>
     </div>
   );
 }
 
-// Payment Details
-function PaymentDetails({ currentUser }: { currentUser: User | undefined }) {
+// Payment Details with UPI QR Code
+function PaymentDetails({
+  currentUser,
+  invoiceNumber
+}: {
+  currentUser: User | undefined;
+  invoiceNumber: string;
+}) {
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Generate QR code if UPI ID is available (no amount - user pays custom amount)
+    const upiId = currentUser?.businessDetails?.upiId;
+    const payeeName = currentUser?.businessDetails?.companyName;
+
+    if (upiId && payeeName) {
+      generateUPIQRCode({
+        upiId,
+        payeeName,
+        // No amount - customer enters their own amount when paying
+        transactionNote: `Payment for Invoice ${invoiceNumber}`,
+        transactionRef: invoiceNumber,
+      }, {
+        width: 120,
+        margin: 1,
+      }).then(dataUrl => {
+        setQrCodeDataUrl(dataUrl);
+      }).catch(err => {
+        console.error('Failed to generate QR code:', err);
+      });
+    }
+  }, [currentUser, invoiceNumber]);
+
+  const hasBankDetails = currentUser?.businessDetails?.bankName ||
+    currentUser?.businessDetails?.accountNumber ||
+    currentUser?.businessDetails?.ifscCode;
+
+  const hasUpiId = currentUser?.businessDetails?.upiId;
+
+  // Don't render if no payment details
+  if (!hasBankDetails && !hasUpiId) {
+    return null;
+  }
+
   return (
-    <div className="border-t-2 border-foreground pt-4 space-y-4">
+    <div className="border-t-2 border-foreground pt-4">
       <p className="font-bold text-foreground uppercase tracking-wide text-xs mb-3">
         Payment Details
       </p>
-      <div className="space-y-2 text-xs">
-        {currentUser?.businessDetails?.bankName && (
-          <PaymentDetailLine 
-            label="Bank Name" 
-            value={currentUser.businessDetails.bankName} 
-          />
-        )}
-        {currentUser?.businessDetails?.accountHolderName && (
-          <PaymentDetailLine 
-            label="Account Holder" 
-            value={currentUser.businessDetails.accountHolderName} 
-          />
-        )}
-        {currentUser?.businessDetails?.accountNumber && (
-          <PaymentDetailLine 
-            label="Account Number" 
-            value={currentUser.businessDetails.accountNumber}
-            mono 
-          />
-        )}
-        {currentUser?.businessDetails?.ifscCode && (
-          <PaymentDetailLine 
-            label="IFSC Code" 
-            value={currentUser.businessDetails.ifscCode}
-            mono 
-          />
+
+      <div className="grid grid-cols-[1fr_auto] items-start gap-8">
+        {/* Left Side: Bank Details */}
+        <div className="space-y-1.5 text-xs">
+          {currentUser?.businessDetails?.bankName && (
+            <PaymentDetailLine
+              label="Bank Name"
+              value={currentUser.businessDetails.bankName}
+            />
+          )}
+          {currentUser?.businessDetails?.accountHolderName && (
+            <PaymentDetailLine
+              label="Account Holder"
+              value={currentUser.businessDetails.accountHolderName}
+            />
+          )}
+          {currentUser?.businessDetails?.accountNumber && (
+            <PaymentDetailLine
+              label="Account Number"
+              value={currentUser.businessDetails.accountNumber}
+              mono
+            />
+          )}
+          {currentUser?.businessDetails?.ifscCode && (
+            <PaymentDetailLine
+              label="IFSC Code"
+              value={currentUser.businessDetails.ifscCode}
+              mono
+            />
+          )}
+        </div>
+
+        {/* Right Side: UPI QR Code */}
+        {hasUpiId && (
+          <div className="flex flex-col items-center">
+            <p className="text-xs text-muted-foreground font-medium mb-2">Scan to Pay</p>
+            {qrCodeDataUrl ? (
+              <div className="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
+                <img
+                  src={qrCodeDataUrl}
+                  alt="UPI Payment QR Code"
+                  className="w-32 h-32"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </div>
+            ) : (
+              <div className="w-32 h-32 border border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                <span className="text-xs text-muted-foreground">Loading...</span>
+              </div>
+            )}
+            {/* UPI Logo and App Support */}
+            <div className="mt-2 flex items-center gap-1.5">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg"
+                alt="UPI"
+                className="h-5"
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <span className="text-xs text-muted-foreground">
+                {currentUser?.businessDetails?.upiId}
+              </span>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -335,18 +473,18 @@ function PaymentDetails({ currentUser }: { currentUser: User | undefined }) {
 }
 
 // Payment Detail Line
-function PaymentDetailLine({ 
-  label, 
-  value, 
-  mono = false 
-}: { 
-  label: string; 
-  value: string; 
+function PaymentDetailLine({
+  label,
+  value,
+  mono = false
+}: {
+  label: string;
+  value: string;
   mono?: boolean;
 }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-muted-foreground font-medium">{label}</span>
+    <div className="flex items-center">
+      <span className="text-muted-foreground w-28 shrink-0">{label}</span>
       <span className={`text-foreground font-semibold ${mono ? 'font-mono' : ''}`}>
         {value}
       </span>

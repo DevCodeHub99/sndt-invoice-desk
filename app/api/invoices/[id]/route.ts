@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   return withAuth(async (req: NextRequest, userId: string) => {
     const rateLimitResponse = await apiRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
@@ -20,7 +20,7 @@ export async function GET(
     try {
       await connectDB();
       const invoice = await InvoiceModel.findOne({ id, userId }).lean();
-      
+
       if (!invoice) {
         return errorResponse('Invoice not found', 404);
       }
@@ -39,7 +39,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   return withAuth(async (req: NextRequest, userId: string) => {
     const rateLimitResponse = await apiRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
@@ -48,7 +48,7 @@ export async function PUT(
       await connectDB();
       const rawData = await req.json();
       const data = sanitize(rawData);
-      
+
       const invoice = await InvoiceModel.findOneAndUpdate(
         { id, userId },
         data,
@@ -73,7 +73,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   return withAuth(async (req: NextRequest, userId: string) => {
     const rateLimitResponse = await apiRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
@@ -81,12 +81,12 @@ export async function PATCH(
     try {
       await connectDB();
       const { status } = await req.json();
-      
+
       // Validate status
-      if (!['pending', 'paid'].includes(status)) {
+      if (!['pending', 'paid', 'partial'].includes(status)) {
         return errorResponse('Invalid status value', 400);
       }
-      
+
       const invoice = await InvoiceModel.findOneAndUpdate(
         { id, userId },
         { status },
@@ -111,7 +111,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   return withAuth(async (req: NextRequest, userId: string) => {
     const rateLimitResponse = await apiRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;

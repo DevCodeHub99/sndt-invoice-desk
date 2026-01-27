@@ -53,8 +53,8 @@ export interface Invoice {
   placeOfSupply?: string;
   isInterState: boolean;
   items: InvoiceItem[];
-  manpowerCharges?: Array<{ 
-    description: string; 
+  manpowerCharges?: Array<{
+    description: string;
     quantity: number;
     rate: number;
     amount: number;
@@ -66,7 +66,9 @@ export interface Invoice {
   manpowerTotal?: number; // Total manpower charges
   roundOff: number;
   total: number;
-  status: 'pending' | 'paid';
+  advancePayment?: number; // Advance amount received from client
+  balanceDue?: number; // Remaining amount after deducting advance
+  status: 'pending' | 'paid' | 'partial'; // partial = advance received
   notes: string;
   createdAt: Date;
   dueDate: Date;
@@ -97,6 +99,7 @@ export interface BusinessDetails {
   accountNumber?: string;
   ifscCode?: string;
   accountHolderName?: string;
+  upiId?: string; // UPI ID for payment QR code generation
 }
 
 export interface User {

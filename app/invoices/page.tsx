@@ -15,14 +15,14 @@ export default function InvoicesPage() {
   const [mounted, setMounted] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<'csv' | 'json'>('csv');
-  
+
   const invoices = useInvoicesStore(state => state.invoices);
   const archivedInvoices = useInvoicesStore(state => state.archivedInvoices);
   const fetchInvoices = useInvoicesStore(state => state.fetchInvoices);
   const fetchArchivedInvoices = useInvoicesStore(state => state.fetchArchivedInvoices);
   const downloadArchivedInvoices = useInvoicesStore(state => state.downloadArchivedInvoices);
   const downloadArchivedInvoicesJSON = useInvoicesStore(state => state.downloadArchivedInvoicesJSON);
-  
+
   useEffect(() => {
     fetchInvoices();
     fetchArchivedInvoices();
@@ -46,6 +46,13 @@ export default function InvoicesPage() {
       return (
         <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 min-w-[70px]">
           Paid
+        </span>
+      );
+    }
+    if (status === 'partial') {
+      return (
+        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 min-w-[70px]">
+          Partial
         </span>
       );
     }
@@ -140,8 +147,19 @@ export default function InvoicesPage() {
                       </div>
                       <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         <div className="text-right">
-                          <p className="font-medium text-foreground text-sm sm:text-base">{formatCurrency(invoice.total)}</p>
-                          <p className="text-xs text-muted-foreground hidden sm:block">{formatDate(invoice.createdAt)}</p>
+                          {invoice.advancePayment && invoice.advancePayment > 0 ? (
+                            <>
+                              <p className="font-medium text-blue-700 text-sm sm:text-base">
+                                {formatCurrency(invoice.balanceDue ?? invoice.total - invoice.advancePayment)}
+                              </p>
+                              <p className="text-xs text-muted-foreground hidden sm:block">Balance Due</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium text-foreground text-sm sm:text-base">{formatCurrency(invoice.total)}</p>
+                              <p className="text-xs text-muted-foreground hidden sm:block">{formatDate(invoice.createdAt)}</p>
+                            </>
+                          )}
                         </div>
                         {getStatusBadge(invoice.status)}
                         <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors hidden sm:block" />

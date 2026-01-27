@@ -59,7 +59,15 @@ export default function InvoiceViewPage() {
   };
 
   const handleStatusToggle = () => {
-    const newStatus = invoice.status === 'paid' ? 'pending' : 'paid';
+    // Cycle through statuses: pending -> partial -> paid -> pending
+    let newStatus: Invoice['status'];
+    if (invoice.status === 'pending') {
+      newStatus = 'partial';
+    } else if (invoice.status === 'partial') {
+      newStatus = 'paid';
+    } else {
+      newStatus = 'pending';
+    }
     updateInvoiceStatus(invoice.id, newStatus);
   };
 
@@ -69,6 +77,13 @@ export default function InvoiceViewPage() {
         label: 'Paid',
         color: 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200',
         icon: '✓'
+      };
+    }
+    if (status === 'partial') {
+      return {
+        label: 'Partial',
+        color: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200',
+        icon: '◐'
       };
     }
     return {
@@ -87,9 +102,9 @@ export default function InvoiceViewPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Invoices
         </Link>
-        
+
         <PageHeader
-          title={`Invoice ${invoice.invoiceNumber}`} 
+          title={`Invoice ${invoice.invoiceNumber}`}
           description="Professional GST-Compliant Invoice"
           action={
             <div className="flex items-center gap-3">
@@ -113,8 +128,8 @@ export default function InvoiceViewPage() {
 
       <div className="space-y-6">
         <div className="max-w-4xl mx-auto">
-          <InvoiceTemplate 
-            invoice={invoice} 
+          <InvoiceTemplate
+            invoice={invoice}
             currentUser={currentUser || undefined}
             className="invoice-card shadow-lg"
           />

@@ -40,10 +40,12 @@ const InvoiceSchema = new Schema<InvoiceType>({
   manpowerTotal: { type: Number, default: 0 }, // Total manpower charges
   roundOff: { type: Number, default: 0 },
   total: { type: Number, required: true },
-  status: { 
-    type: String, 
-    enum: ['pending', 'paid'], 
-    default: 'pending' 
+  advancePayment: { type: Number, default: 0 }, // Advance amount received from client
+  balanceDue: { type: Number, default: 0 }, // Remaining amount after deducting advance
+  status: {
+    type: String,
+    enum: ['pending', 'paid', 'partial'], // partial = advance received
+    default: 'pending'
   },
   notes: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
