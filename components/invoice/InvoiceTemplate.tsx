@@ -55,11 +55,11 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
 
           {/* Amount in Words */}
           <AmountInWords
-            amount={invoice.advancePayment && invoice.advancePayment > 0
-              ? (invoice.balanceDue ?? finalTotal - invoice.advancePayment)
+            amount={(invoice.advancePayment ?? 0) > 0
+              ? (invoice.balanceDue ?? finalTotal - (invoice.advancePayment ?? 0))
               : finalTotal
             }
-            isBalanceDue={Boolean(invoice.advancePayment && invoice.advancePayment > 0)}
+            isBalanceDue={(invoice.advancePayment ?? 0) > 0}
           />
 
           {/* Payment Details with UPI QR Code */}

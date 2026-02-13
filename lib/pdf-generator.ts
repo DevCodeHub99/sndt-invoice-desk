@@ -73,6 +73,79 @@ export async function generateInvoicePDF(invoice: Invoice, currentUser: User | u
   }
 }
 
+/**
+ * Print invoice using the exact same HTML template as the PDF download.
+ * Opens a new browser window with the styled invoice and triggers the print dialog.
+ */
+export async function printInvoice(invoice: Invoice, currentUser: User | undefined) {
+  // Generate QR code if UPI ID available
+  let qrCodeDataUrl: string | null = null;
+  const upiId = currentUser?.businessDetails?.upiId;
+  const payeeName = currentUser?.businessDetails?.companyName;
+
+  if (upiId && payeeName) {
+    try {
+      qrCodeDataUrl = await generateUPIQRCode({
+        upiId,
+        payeeName,
+        transactionNote: `Payment for Invoice ${invoice.invoiceNumber}`,
+        transactionRef: invoice.invoiceNumber,
+      }, {
+        width: 120,
+        margin: 1,
+      });
+    } catch (err) {
+      console.error('Failed to generate QR code for print:', err);
+    }
+  }
+
+  const invoiceHTML = generateInvoiceHTML(invoice, currentUser, qrCodeDataUrl);
+
+  const printWindow = window.open('', '_blank', 'width=850,height=1100');
+  if (!printWindow) {
+    alert('Please allow popups to print the invoice.');
+    return;
+  }
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Invoice ${invoice.invoiceNumber}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: Arial, sans-serif;
+          background: #fff;
+          color: ${COLORS.foreground};
+          width: 210mm;
+          margin: 0 auto;
+          padding: 0;
+        }
+        @media print {
+          body { margin: 0; padding: 0; }
+          @page { size: A4; margin: 5mm; }
+        }
+      </style>
+    </head>
+    <body>
+      ${invoiceHTML}
+      <script>
+        window.onload = function() {
+          setTimeout(function() {
+            window.print();
+            window.onafterprint = function() { window.close(); };
+            // Fallback: close after 2 seconds if onafterprint not supported
+            setTimeout(function() { window.close(); }, 2000);
+          }, 300);
+        };
+      </script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
 function createPDFContainer(): HTMLDivElement {
   const container = document.createElement('div');
   container.style.position = 'absolute';
@@ -105,7 +178,7 @@ function addImageToPDF(pdf: any, canvas: HTMLCanvasElement) {
 function generateInvoiceHTML(invoice: Invoice, currentUser: User | undefined, qrCodeDataUrl: string | null): string {
   const roundOff = Math.round(invoice.total) - invoice.total;
   const finalTotal = Math.round(invoice.total);
-  const hasAdvance = invoice.advancePayment && invoice.advancePayment > 0;
+  const hasAdvance = (invoice.advancePayment ?? 0) > 0;
   const advanceAmount = invoice.advancePayment || 0;
   const balanceDue = hasAdvance ? (invoice.balanceDue ?? (finalTotal - advanceAmount)) : finalTotal;
 
@@ -293,7 +366,7 @@ function generateItemsTable(invoice: Invoice): string {
 }
 
 function generateTotalsSection(invoice: Invoice, roundOff: number, finalTotal: number): string {
-  const hasAdvance = invoice.advancePayment && invoice.advancePayment > 0;
+  const hasAdvance = (invoice.advancePayment ?? 0) > 0;
   const advanceAmount = invoice.advancePayment || 0;
   const balanceDue = hasAdvance ? (invoice.balanceDue ?? (finalTotal - advanceAmount)) : finalTotal;
 

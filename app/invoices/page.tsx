@@ -147,10 +147,10 @@ export default function InvoicesPage() {
                       </div>
                       <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         <div className="text-right">
-                          {invoice.advancePayment && invoice.advancePayment > 0 ? (
+                          {(invoice.advancePayment ?? 0) > 0 ? (
                             <>
                               <p className="font-medium text-blue-700 text-sm sm:text-base">
-                                {formatCurrency(invoice.balanceDue ?? invoice.total - invoice.advancePayment)}
+                                {formatCurrency(invoice.balanceDue ?? invoice.total - (invoice.advancePayment ?? 0))}
                               </p>
                               <p className="text-xs text-muted-foreground hidden sm:block">Balance Due</p>
                             </>
