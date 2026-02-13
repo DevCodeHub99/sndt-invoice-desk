@@ -65,7 +65,7 @@ export async function generateInvoicePDF(invoice: Invoice, currentUser: User | u
     });
 
     const pdf = createPDFDocument();
-    addImageToPDF(pdf, canvas);
+    addImageToPDFMultiPage(pdf, canvas);
 
     return pdf.output('blob');
   } finally {
@@ -124,7 +124,43 @@ export async function printInvoice(invoice: Invoice, currentUser: User | undefin
         }
         @media print {
           body { margin: 0; padding: 0; }
-          @page { size: A4; margin: 5mm; }
+          @page { size: A4; margin: 8mm 5mm; }
+
+          /* Prevent page breaks inside these elements */
+          .invoice-header,
+          .invoice-billing,
+          .invoice-totals,
+          .invoice-amount-words,
+          .invoice-payment-details,
+          .invoice-footer-notice {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Allow the items table to break across pages */
+          .invoice-items-table {
+            page-break-inside: auto;
+            break-inside: auto;
+          }
+          .invoice-items-table thead {
+            display: table-header-group;
+          }
+          .invoice-items-table tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Keep totals and payment together at bottom */
+          .invoice-totals-group {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Avoid orphaned footer */
+          .invoice-footer-notice {
+            page-break-before: avoid;
+            break-before: avoid;
+          }
         }
       </style>
     </head>
@@ -151,7 +187,7 @@ function createPDFContainer(): HTMLDivElement {
   container.style.position = 'absolute';
   container.style.left = '-9999px';
   container.style.width = '210mm'; // A4 width
-  container.style.minHeight = '297mm'; // A4 height
+  // Do NOT set fixed height — let content flow naturally so html2canvas captures everything
   container.style.backgroundColor = COLORS.white;
   container.style.color = COLORS.foreground;
   container.style.padding = '0';
@@ -167,12 +203,63 @@ function createPDFDocument() {
   });
 }
 
-function addImageToPDF(pdf: any, canvas: HTMLCanvasElement) {
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const imgWidth = pdfWidth - 10;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-  pdf.addImage(imgData, 'JPEG', 5, 5, imgWidth, imgHeight);
+/**
+ * Splits the rendered canvas across multiple A4 pages if the content exceeds one page.
+ * This is the industry-standard approach for html2canvas + jsPDF multi-page PDFs.
+ */
+function addImageToPDFMultiPage(pdf: any, canvas: HTMLCanvasElement) {
+  const pdfPageWidth = pdf.internal.pageSize.getWidth();   // 210mm
+  const pdfPageHeight = pdf.internal.pageSize.getHeight();  // 297mm
+
+  const margin = 5; // mm on each side
+  const usableWidth = pdfPageWidth - margin * 2;
+  const usableHeight = pdfPageHeight - margin * 2;
+
+  // Calculate how tall the full image would be (in mm) when scaled to usableWidth
+  const scaledFullHeight = (canvas.height * usableWidth) / canvas.width;
+
+  // If it fits on one page, simple case
+  if (scaledFullHeight <= usableHeight) {
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', margin, margin, usableWidth, scaledFullHeight);
+    return;
+  }
+
+  // Multi-page: slice the source canvas into page-sized chunks
+  const totalPages = Math.ceil(scaledFullHeight / usableHeight);
+  // How many source pixels correspond to one PDF page of usable height
+  const sourcePageHeight = Math.floor(canvas.height / totalPages);
+
+  for (let page = 0; page < totalPages; page++) {
+    if (page > 0) {
+      pdf.addPage();
+    }
+
+    const sourceY = page * sourcePageHeight;
+    const sourceH = Math.min(sourcePageHeight, canvas.height - sourceY);
+
+    // Create a temporary canvas for this page's slice
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = sourceH;
+
+    const ctx = pageCanvas.getContext('2d');
+    if (!ctx) continue;
+
+    // Draw the relevant slice
+    ctx.drawImage(
+      canvas,
+      0, sourceY,           // source x, y
+      canvas.width, sourceH, // source width, height
+      0, 0,                  // dest x, y
+      canvas.width, sourceH  // dest width, height
+    );
+
+    const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+    const sliceHeight = (sourceH * usableWidth) / canvas.width;
+
+    pdf.addImage(pageImgData, 'JPEG', margin, margin, usableWidth, sliceHeight);
+  }
 }
 
 function generateInvoiceHTML(invoice: Invoice, currentUser: User | undefined, qrCodeDataUrl: string | null): string {
@@ -184,15 +271,31 @@ function generateInvoiceHTML(invoice: Invoice, currentUser: User | undefined, qr
 
   return `
     <div style="font-family: Arial, sans-serif; color: ${COLORS.foreground}; background: ${COLORS.white}; padding: 0;">
-      <div style="border: 1px solid ${COLORS.border}; border-radius: 8px; overflow: hidden;">
-        ${generateHeader(invoice, currentUser)}
+      <div style="border: 1px solid ${COLORS.border}; border-radius: 8px; overflow: visible;">
+        <div class="invoice-header">
+          ${generateHeader(invoice, currentUser)}
+        </div>
         <div style="padding: 32px;">
-          ${generateBillingSection(invoice)}
-          ${generateItemsTable(invoice)}
-          ${generateTotalsSection(invoice, roundOff, finalTotal)}
-          ${generateAmountInWords(hasAdvance ? balanceDue : finalTotal, hasAdvance || false)}
-          ${generatePaymentDetails(currentUser, qrCodeDataUrl)}
-          ${generateFooterNotice(currentUser)}
+          <div class="invoice-billing">
+            ${generateBillingSection(invoice)}
+          </div>
+          <div class="invoice-items-table">
+            ${generateItemsTable(invoice)}
+          </div>
+          <div class="invoice-totals-group">
+            <div class="invoice-totals">
+              ${generateTotalsSection(invoice, roundOff, finalTotal)}
+            </div>
+            <div class="invoice-amount-words">
+              ${generateAmountInWords(hasAdvance ? balanceDue : finalTotal, hasAdvance || false)}
+            </div>
+          </div>
+          <div class="invoice-payment-details">
+            ${generatePaymentDetails(currentUser, qrCodeDataUrl)}
+          </div>
+          <div class="invoice-footer-notice">
+            ${generateFooterNotice(currentUser)}
+          </div>
         </div>
       </div>
     </div>

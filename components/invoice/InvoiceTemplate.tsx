@@ -27,11 +27,9 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
         color: '#222831',
         backgroundColor: '#fff',
         maxWidth: '210mm', // A4 width
-        minHeight: '297mm', // A4 height
-        aspectRatio: '210 / 297',
       }}
     >
-      <div className="border rounded-lg shadow-sm h-full">
+      <div className="border rounded-lg shadow-sm">
         {/* Header Section */}
         <InvoiceHeader invoice={invoice} currentUser={currentUser} />
 
