@@ -6,9 +6,9 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InvoiceTemplate } from '@/components/invoice/InvoiceTemplate';
-import { generateInvoicePDF } from '@/lib/pdf-generator';
+import { generateInvoicePDF, printInvoice } from '@/lib/pdf-generator';
 import type { Invoice } from '@/lib/types';
-import { ArrowLeft, Download, Pencil } from 'lucide-react';
+import { ArrowLeft, Download, Pencil, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -127,6 +127,11 @@ export default function InvoiceViewPage() {
               <Button variant="secondary" onClick={handleDownloadPDF} disabled={isDownloading}>
                 <Download className="w-4 h-4" />
                 <span className="ml-2">{isDownloading ? 'Downloading...' : 'Download PDF'}</span>
+              </Button>
+
+              <Button variant="secondary" onClick={() => printInvoice(invoice, currentUser || undefined)}>
+                <Printer className="w-4 h-4" />
+                <span className="ml-2">Print</span>
               </Button>
             </div>
           }
