@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { InvoiceTemplate } from '@/components/invoice/InvoiceTemplate';
 import { generateInvoicePDF } from '@/lib/pdf-generator';
 import type { Invoice } from '@/lib/types';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -108,6 +108,13 @@ export default function InvoiceViewPage() {
           description="Professional GST-Compliant Invoice"
           action={
             <div className="flex items-center gap-3">
+              <Link href={`/invoices/${invoice.id}/edit`}>
+                <Button variant="secondary">
+                  <Pencil className="w-4 h-4" />
+                  <span className="ml-2">Edit</span>
+                </Button>
+              </Link>
+
               <button
                 onClick={handleStatusToggle}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium text-sm transition-all ${statusConfig.color}`}

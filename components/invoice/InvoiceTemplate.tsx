@@ -260,7 +260,7 @@ function TotalsSection({
   roundOff: number;
   finalTotal: number;
 }) {
-  const hasAdvance = invoice.advancePayment && invoice.advancePayment > 0;
+  const hasAdvance = (invoice.advancePayment ?? 0) > 0;
   const advanceAmount = invoice.advancePayment || 0;
   const balanceDue = hasAdvance ? (invoice.balanceDue ?? (finalTotal - advanceAmount)) : finalTotal;
 
@@ -282,23 +282,23 @@ function TotalsSection({
       <div className="space-y-1.5 text-xs border-l-2 border-black pl-4">
         {/* Step 1: Taxable Items Subtotal */}
         <TotalLine label="Taxable Amount" amount={taxableAmount} />
-        
+
         {/* Step 2: Tax Breakdown */}
         {invoice.cgst > 0 && <TotalLine label="  CGST @ 9%" amount={invoice.cgst} />}
         {invoice.sgst > 0 && <TotalLine label="  SGST @ 9%" amount={invoice.sgst} />}
         {invoice.igst > 0 && <TotalLine label="  IGST @ 18%" amount={invoice.igst} />}
-        
+
         {/* Step 3: Non-Taxable Items (if any) */}
         {nonTaxableAmount > 0 && (
           <TotalLine label="Other Charges (No GST)" amount={nonTaxableAmount} />
         )}
-        
+
         {/* Step 4: Round Off (if any) */}
         {roundOff !== 0 && <TotalLine label="Round Off" amount={roundOff} />}
-        
+
         {/* Separator Line */}
         <div className="border-t-2 border-black my-2"></div>
-        
+
         {/* Step 5: TOTAL INVOICE VALUE */}
         <div className="flex justify-between py-2 font-bold bg-gray-50 -mx-4 px-4">
           <span className="text-foreground text-sm">TOTAL</span>
@@ -313,10 +313,10 @@ function TotalsSection({
               <span className="text-muted-foreground">Less: Advance Received</span>
               <span className="text-red-600 font-semibold">- {formatCurrency(invoice.advancePayment!)}</span>
             </div>
-            
+
             {/* Separator Line */}
             <div className="border-t-2 border-foreground my-2"></div>
-            
+
             {/* Step 7: BALANCE DUE */}
             <div className="flex justify-between py-2 bg-gray-100 -mx-4 px-4 rounded">
               <span className="text-foreground font-bold text-sm">BALANCE DUE</span>

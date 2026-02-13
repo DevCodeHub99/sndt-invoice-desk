@@ -18,6 +18,7 @@ import type { InvoiceItem } from '@/lib/types';
 interface LineItem {
   id: string;
   productId: string;
+  comment: string; // Optional admin note (date ref, extra info, etc.)
   quantity: number | string; // Allow string for empty state during editing
   unitPrice: number | string; // Allow string for empty state during editing
   taxRate: number;
@@ -45,6 +46,7 @@ export default function NewInvoicePage() {
   const [lineItems, setLineItems] = useState<LineItem[]>([{
     id: uuidv4(),
     productId: '',
+    comment: '',
     quantity: 1,
     unitPrice: '',
     taxRate: currentUser?.businessDetails?.defaultTaxRate || 18
@@ -83,7 +85,7 @@ export default function NewInvoicePage() {
           id: item.id,
           productId: product.id,
           productName: product.name,
-          description: product.description,
+          description: item.comment.trim(),
           hsnSac: product.hsnSac,
           quantity: quantity,
           unitPrice: unitPrice,
@@ -167,6 +169,7 @@ export default function NewInvoicePage() {
     setLineItems([...lineItems, {
       id: uuidv4(),
       productId: '',
+      comment: '',
       quantity: 1,
       unitPrice: '',
       taxRate: currentUser?.businessDetails?.defaultTaxRate || 18
@@ -427,6 +430,14 @@ export default function NewInvoicePage() {
                             <Trash2 className="w-4 h-4 text-danger" />
                           </button>
                         </div>
+                        {/* Optional comment/note for this item */}
+                        <input
+                          type="text"
+                          value={item.comment}
+                          onChange={(e) => updateLineItem(item.id, 'comment', e.target.value)}
+                          placeholder="Add note (e.g. date ref, challan no, remarks...)"
+                          className="w-full px-3 py-1.5 text-xs rounded-md border bg-card text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent"
+                        />
                         {product && (
                           <div className="flex justify-between text-xs sm:text-sm text-muted-foreground pt-2 border-t">
                             <span>Subtotal: {formatCurrency(itemSubtotal)}</span>
@@ -622,7 +633,7 @@ export default function NewInvoicePage() {
                     <span className="text-muted-foreground">Taxable Amount</span>
                     <span className="text-foreground font-medium">{formatCurrency(totals.subtotal)}</span>
                   </div>
-                  
+
                   {/* Step 2: Tax Breakdown */}
                   {totals.cgst > 0 && (
                     <div className="flex justify-between text-sm pl-3">
@@ -642,7 +653,7 @@ export default function NewInvoicePage() {
                       <span className="text-foreground">{formatCurrency(totals.igst)}</span>
                     </div>
                   )}
-                  
+
                   {/* Step 3: Non-Taxable Items */}
                   {totals.manpowerTotal > 0 && (
                     <div className="flex justify-between text-sm">
@@ -650,7 +661,7 @@ export default function NewInvoicePage() {
                       <span className="text-foreground font-medium">{formatCurrency(totals.manpowerTotal)}</span>
                     </div>
                   )}
-                  
+
                   {/* Step 4: Round Off */}
                   {totals.roundOff !== 0 && (
                     <div className="flex justify-between text-sm">
@@ -658,10 +669,10 @@ export default function NewInvoicePage() {
                       <span className="text-foreground">{formatCurrency(totals.roundOff)}</span>
                     </div>
                   )}
-                  
+
                   {/* Separator */}
                   <div className="border-t-2 border-gray-300 my-2"></div>
-                  
+
                   {/* Step 5: Total */}
                   <div className="flex justify-between bg-gray-100 -mx-4 px-4 py-2 rounded">
                     <span className="font-bold text-foreground">TOTAL</span>
@@ -691,10 +702,10 @@ export default function NewInvoicePage() {
                           <span className="text-muted-foreground">Less: Advance Received</span>
                           <span className="text-red-600 font-semibold">- {formatCurrency(totals.advancePayment)}</span>
                         </div>
-                        
+
                         {/* Separator */}
                         <div className="border-t-2 border-foreground my-2"></div>
-                        
+
                         {/* Step 7: Balance Due */}
                         <div className="flex justify-between bg-gray-100 -mx-4 px-4 py-3 rounded">
                           <span className="text-foreground font-bold">BALANCE DUE</span>

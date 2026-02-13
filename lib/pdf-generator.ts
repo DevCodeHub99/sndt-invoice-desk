@@ -237,7 +237,7 @@ function generateItemsTable(invoice: Invoice): string {
     ...invoice.items.map((item, idx) => ({
       type: 'product',
       description: item.productName,
-      subDescription: item.description,
+      subDescription: item.description || '',
       hsnSac: item.hsnSac || '-',
       quantity: item.quantity,
       rate: item.unitPrice,
@@ -277,7 +277,7 @@ function generateItemsTable(invoice: Invoice): string {
             <tr style="background: ${item.idx % 2 === 0 ? COLORS.white : COLORS.grayAlt};">
               <td style="padding: 8px;">
                 <p style="font-weight: 500; margin: 0; color: ${COLORS.foreground};">${item.description}</p>
-                ${item.subDescription ? `<p style="font-size: 11px; color: ${COLORS.muted}; margin: 0;">${item.subDescription}</p>` : ''}
+                ${item.subDescription ? `<p style="font-size: 11px; color: ${COLORS.muted}; margin: 2px 0 0 0;">${item.subDescription}</p>` : ''}
               </td>
               <td style="text-align: center; padding: 8px; color: ${COLORS.foreground}; font-weight: 500;">${item.hsnSac}</td>
               <td style="text-align: center; padding: 8px; color: ${COLORS.foreground};">${item.quantity}</td>
