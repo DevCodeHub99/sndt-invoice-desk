@@ -214,19 +214,34 @@ function addImageToPDFMultiPage(pdf: any, canvas: HTMLCanvasElement) {
   const usableWidth = pdfPageWidth - margin * 2;
   const usableHeight = pdfPageHeight - margin * 2;
 
-  // Calculate how tall the full image would be (in mm) when scaled to usableWidth
-  const scaledFullHeight = (canvas.height * usableWidth) / canvas.width;
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
-  // If it fits on one page, simple case
-  if (scaledFullHeight <= usableHeight) {
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    pdf.addImage(imgData, 'JPEG', margin, margin, usableWidth, scaledFullHeight);
+  // 1. Calculate dimensions if we fit to width (standard behavior)
+  const fitWidth = usableWidth;
+  const fitHeight = (canvas.height * fitWidth) / canvas.width;
+
+  // 2. SMART FIT: If content is slightly taller than one page (up to 15% overflow),
+  //    shrink it to fit exactly one page. This matches "Print to PDF" behavior.
+  if (fitHeight > usableHeight && fitHeight <= usableHeight * 1.15) {
+    const scaleFactor = usableHeight / fitHeight;
+    const scaledWidth = fitWidth * scaleFactor;
+    const scaledHeight = usableHeight;
+
+    // Center horizontally since it's now narrower
+    const xOffset = margin + (usableWidth - scaledWidth) / 2;
+    pdf.addImage(imgData, 'JPEG', xOffset, margin, scaledWidth, scaledHeight);
     return;
   }
 
-  // Multi-page: slice the source canvas into page-sized chunks
-  const totalPages = Math.ceil(scaledFullHeight / usableHeight);
-  // How many source pixels correspond to one PDF page of usable height
+  // 3. If it fits naturally on one page
+  if (fitHeight <= usableHeight) {
+    pdf.addImage(imgData, 'JPEG', margin, margin, fitWidth, fitHeight);
+    return;
+  }
+
+  // 4. Multi-page split (original logic)
+  const totalPages = Math.ceil(fitHeight / usableHeight);
+  // Split equally to ensure consistent look
   const sourcePageHeight = Math.floor(canvas.height / totalPages);
 
   for (let page = 0; page < totalPages; page++) {
@@ -246,6 +261,9 @@ function addImageToPDFMultiPage(pdf: any, canvas: HTMLCanvasElement) {
     if (!ctx) continue;
 
     // Draw the relevant slice
+    ctx.fillStyle = '#ffffff'; // Ensure white background
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
     ctx.drawImage(
       canvas,
       0, sourceY,           // source x, y
@@ -255,9 +273,9 @@ function addImageToPDFMultiPage(pdf: any, canvas: HTMLCanvasElement) {
     );
 
     const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
-    const sliceHeight = (sourceH * usableWidth) / canvas.width;
+    const sliceHeight = (sourceH * fitWidth) / canvas.width;
 
-    pdf.addImage(pageImgData, 'JPEG', margin, margin, usableWidth, sliceHeight);
+    pdf.addImage(pageImgData, 'JPEG', margin, margin, fitWidth, sliceHeight);
   }
 }
 
