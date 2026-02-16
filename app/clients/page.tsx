@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useClientsStore } from '@/lib/store-mongodb';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -90,14 +90,18 @@ export default function ClientsPage() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let success = false;
     if (editingClient) {
-      updateClient(editingClient.id, formData);
+      success = await updateClient(editingClient.id, formData);
     } else {
-      addClient(formData);
+      success = await addClient(formData);
     }
-    closeEdit();
+
+    if (success) {
+      closeEdit();
+    }
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -168,8 +172,8 @@ export default function ClientsPage() {
 
           {/* Client Cards */}
           {clients.map((client) => (
-            <Card 
-              key={client.id} 
+            <Card
+              key={client.id}
               className="hover:shadow-md hover:border-primary/20 transition-all cursor-pointer group"
               onClick={() => openDetails(client)}
             >
@@ -280,8 +284,8 @@ export default function ClientsPage() {
               <Button type="button" variant="secondary" onClick={closeDetails}>
                 Close
               </Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 onClick={() => {
                   closeDetails();
                   openEdit(selectedClient);

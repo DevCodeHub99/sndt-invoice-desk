@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, useProductsStore, useClientsStore, useInvoicesStore, useLaborStore } from '@/lib/store-mongodb';
 import { Card, CardContent, CardFooter } from '@/components/ui/Card';
@@ -55,6 +55,7 @@ export default function NewInvoicePage() {
   const [notes, setNotes] = useState('');
   const [dueInDays, setDueInDays] = useState('30');
   const [advancePayment, setAdvancePayment] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch clients and products on mount
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function NewInvoicePage() {
           id: item.id,
           productId: product.id,
           productName: product.name,
-          description: item.comment.trim(),
+          description: item.comment.trim() || product.description || product.name,
           hsnSac: product.hsnSac,
           quantity: quantity,
           unitPrice: unitPrice,
@@ -234,61 +235,71 @@ export default function NewInvoicePage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientId || invoiceItems.length === 0) return;
+    if (!clientId || invoiceItems.length === 0 || isSubmitting) return;
 
-    const client = clients.find((c) => c.id === clientId)!;
-    const clientAddress = [client.billingAddress, client.billingCity, client.billingState, client.billingZipCode, client.billingCountry]
-      .filter(Boolean)
-      .join(', ');
+    setIsSubmitting(true);
+    try {
+      const client = clients.find((c) => c.id === clientId)!;
+      const clientAddress = [client.billingAddress, client.billingCity, client.billingState, client.billingZipCode, client.billingCountry]
+        .filter(Boolean)
+        .join(', ');
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + parseInt(dueInDays));
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + parseInt(dueInDays));
 
-    // Prepare manpower charges with quantity
-    const manpowerCharges = manpowerItems
-      .filter(item => item.description.trim())
-      .map(item => {
-        const price = typeof item.amount === 'string'
-          ? (parseFloat(item.amount) || 0)
-          : (item.amount || 0);
-        const quantity = typeof item.quantity === 'string'
-          ? (parseInt(item.quantity) || 1)
-          : (item.quantity || 1);
-        return {
-          description: item.description,
-          quantity: quantity,
-          rate: price,
-          amount: price * quantity
-        };
+      // Prepare manpower charges with quantity
+      const manpowerCharges = manpowerItems
+        .filter(item => item.description.trim())
+        .map(item => {
+          const price = typeof item.amount === 'string'
+            ? (parseFloat(item.amount) || 0)
+            : (item.amount || 0);
+          const quantity = typeof item.quantity === 'string'
+            ? (parseInt(item.quantity) || 1)
+            : (item.quantity || 1);
+          return {
+            description: item.description,
+            quantity: quantity,
+            rate: price,
+            amount: price * quantity
+          };
+        });
+
+      const success = await addInvoice({
+        clientId: client.id,
+        clientName: client.companyName,
+        clientAddress,
+        clientGstin: client.taxId,
+        clientState: client.billingState,
+        placeOfSupply: `${client.billingState} - ${getStateFromGSTIN(client.taxId)}`,
+        isInterState: totals.isInterState,
+        items: invoiceItems,
+        manpowerCharges: manpowerCharges.length > 0 ? manpowerCharges : undefined,
+        subtotal: totals.subtotal,
+        cgst: totals.cgst,
+        sgst: totals.sgst,
+        igst: totals.igst,
+        manpowerTotal: totals.manpowerTotal > 0 ? totals.manpowerTotal : undefined,
+        roundOff: totals.roundOff,
+        total: totals.total,
+        advancePayment: totals.advancePayment > 0 ? totals.advancePayment : undefined,
+        balanceDue: totals.advancePayment > 0 ? totals.balanceDue : undefined,
+        status: totals.advancePayment > 0 ? (totals.balanceDue === 0 ? 'paid' : 'partial') : 'pending',
+        notes,
+        dueDate,
       });
 
-    addInvoice({
-      clientId: client.id,
-      clientName: client.companyName,
-      clientAddress,
-      clientGstin: client.taxId,
-      clientState: client.billingState,
-      placeOfSupply: `${client.billingState} - ${getStateFromGSTIN(client.taxId)}`,
-      isInterState: totals.isInterState,
-      items: invoiceItems,
-      manpowerCharges: manpowerCharges.length > 0 ? manpowerCharges : undefined,
-      subtotal: totals.subtotal,
-      cgst: totals.cgst,
-      sgst: totals.sgst,
-      igst: totals.igst,
-      manpowerTotal: totals.manpowerTotal > 0 ? totals.manpowerTotal : undefined,
-      roundOff: totals.roundOff,
-      total: totals.total,
-      advancePayment: totals.advancePayment > 0 ? totals.advancePayment : undefined,
-      balanceDue: totals.advancePayment > 0 ? totals.balanceDue : undefined,
-      status: totals.advancePayment > 0 ? (totals.balanceDue === 0 ? 'paid' : 'partial') : 'pending',
-      notes,
-      dueDate,
-    });
-
-    router.push('/invoices');
+      if (success) {
+        router.push('/invoices');
+      } else {
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Failed to create invoice:', error);
+      setIsSubmitting(false);
+    }
   };
 
   const clientOptions = [
@@ -728,9 +739,9 @@ export default function NewInvoicePage() {
                   value={dueInDays}
                   onChange={(e) => setDueInDays(e.target.value)}
                 />
-                <Button type="submit" className="w-full mt-4" disabled={!canSubmit}>
+                <Button type="submit" className="w-full mt-4" disabled={!canSubmit || isSubmitting}>
                   <FileText className="w-4 h-4 mr-2" />
-                  Create Invoice
+                  {isSubmitting ? 'Creating Invoice...' : 'Create Invoice'}
                 </Button>
               </CardFooter>
             </Card>

@@ -88,12 +88,7 @@ export default function EditInvoicePage() {
         // Convert invoice items back to line items
         const restoredLineItems: LineItem[] = invoice.items.map((item) => {
             // Find matching product by productId
-            const product = products.find((p) => p.id === item.productId);
             // Calculate base unit price (before tax)
-            const quantity = item.quantity || 1;
-            const itemSubtotal = quantity * item.unitPrice;
-            const itemTax = itemSubtotal * (item.taxRate / 100);
-
             return {
                 id: item.id,
                 productId: item.productId,

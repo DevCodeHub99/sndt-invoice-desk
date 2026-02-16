@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useInvoicesStore } from '@/lib/store-mongodb';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LinkButton } from '@/components/ui/LinkButton';
@@ -42,24 +43,14 @@ export default function InvoicesPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'paid') {
-      return (
-        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 min-w-[70px]">
-          Paid
-        </span>
-      );
-    }
-    if (status === 'partial') {
-      return (
-        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 min-w-[70px]">
-          Partial
-        </span>
-      );
-    }
     return (
-      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 min-w-[70px]">
-        Pending
-      </span>
+      <Badge variant={
+        status === 'paid' ? 'success' :
+          status === 'partial' ? 'info' : 'warning'
+      }>
+        {status === 'paid' ? 'Paid' :
+          status === 'partial' ? 'Partial' : 'Pending'}
+      </Badge>
     );
   };
 

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 
 interface BadgeProps {
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'muted';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'muted';
   children: ReactNode;
   className?: string;
 }
@@ -15,6 +15,7 @@ export function Badge({ variant = 'default', children, className }: BadgeProps) 
     success: 'bg-success/10 text-success',
     warning: 'bg-warning/10 text-warning',
     danger: 'bg-danger/10 text-danger',
+    info: 'bg-blue-100 text-blue-700',
     muted: 'bg-muted text-muted-foreground',
   };
 

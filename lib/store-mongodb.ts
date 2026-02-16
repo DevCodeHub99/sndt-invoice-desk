@@ -23,27 +23,27 @@ interface AuthState {
 interface ProductsState {
   products: Product[];
   fetchProducts: () => Promise<void>;
-  addProduct: (product: Omit<Product, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
-  deleteProduct: (id: string) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id' | 'userId' | 'createdAt'>) => Promise<boolean>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
 }
 
 // Clients Store - Always fetch fresh data
 interface ClientsState {
   clients: Client[];
   fetchClients: () => Promise<void>;
-  addClient: (client: Omit<Client, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateClient: (id: string, client: Partial<Client>) => Promise<void>;
-  deleteClient: (id: string) => Promise<void>;
+  addClient: (client: Omit<Client, 'id' | 'userId' | 'createdAt'>) => Promise<boolean>;
+  updateClient: (id: string, client: Partial<Client>) => Promise<boolean>;
+  deleteClient: (id: string) => Promise<boolean>;
 }
 
 // Labor Store - Always fetch fresh data
 interface LaborState {
   laborCharges: Labor[];
   fetchLaborCharges: () => Promise<void>;
-  addLaborCharge: (labor: Omit<Labor, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
-  updateLaborCharge: (id: string, labor: Partial<Labor>) => Promise<void>;
-  deleteLaborCharge: (id: string) => Promise<void>;
+  addLaborCharge: (labor: Omit<Labor, 'id' | 'userId' | 'createdAt'>) => Promise<boolean>;
+  updateLaborCharge: (id: string, labor: Partial<Labor>) => Promise<boolean>;
+  deleteLaborCharge: (id: string) => Promise<boolean>;
 }
 
 // Invoices Store - Always fetch fresh data
@@ -52,10 +52,10 @@ interface InvoicesState {
   archivedInvoices: Partial<Invoice>[];
   fetchInvoices: () => Promise<void>;
   fetchArchivedInvoices: () => Promise<void>;
-  addInvoice: (invoice: Omit<Invoice, 'id' | 'userId' | 'invoiceNumber' | 'createdAt'>) => Promise<void>;
-  updateInvoice: (id: string, invoice: Partial<Invoice>) => Promise<void>;
-  updateInvoiceStatus: (id: string, status: Invoice['status']) => Promise<void>;
-  deleteInvoice: (id: string) => Promise<void>;
+  addInvoice: (invoice: Omit<Invoice, 'id' | 'userId' | 'invoiceNumber' | 'createdAt'>) => Promise<boolean>;
+  updateInvoice: (id: string, invoice: Partial<Invoice>) => Promise<boolean>;
+  updateInvoiceStatus: (id: string, status: Invoice['status']) => Promise<boolean>;
+  deleteInvoice: (id: string) => Promise<boolean>;
   downloadArchivedInvoices: () => Promise<void>;
   downloadArchivedInvoicesJSON: () => Promise<void>;
   cleanupOldInvoices: () => Promise<boolean>;
@@ -76,6 +76,7 @@ async function apiCall<T>(
         ...options?.headers,
       },
       credentials: 'include',
+      cache: 'no-store',
     });
 
     let data;
@@ -84,24 +85,24 @@ async function apiCall<T>(
     } catch (parseError) {
       return { ok: false, error: `Failed to parse response: ${response.statusText}` };
     }
-    
+
     if (data.success !== undefined) {
-      return { 
-        ok: data.success, 
-        data: data.success ? data.data || data : undefined, 
-        error: data.error 
+      return {
+        ok: data.success,
+        data: data.success ? data.data || data : undefined,
+        error: data.error
       };
     }
-    
+
     if (response.ok) {
       return { ok: true, data, error: undefined };
     } else {
       return { ok: false, data: undefined, error: data.error || data.message || 'Request failed' };
     }
   } catch (error) {
-    return { 
-      ok: false, 
-      error: error instanceof Error ? error.message : 'Network error' 
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Network error'
     };
   }
 }
@@ -146,7 +147,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const { ok } = await apiCall('/api/auth/verify');
-        
+
         if (!ok) {
           set({ currentUser: null, isAuthenticated: false });
           return false;
@@ -204,6 +205,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchProducts();
     }
+    return ok;
   },
 
   updateProduct: async (id, product) => {
@@ -215,6 +217,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchProducts();
     }
+    return ok;
   },
 
   deleteProduct: async (id) => {
@@ -223,6 +226,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchProducts();
     }
+    return ok;
   },
 }));
 
@@ -249,6 +253,7 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchClients();
     }
+    return ok;
   },
 
   updateClient: async (id, client) => {
@@ -260,6 +265,7 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchClients();
     }
+    return ok;
   },
 
   deleteClient: async (id) => {
@@ -268,6 +274,7 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchClients();
     }
+    return ok;
   },
 }));
 
@@ -303,6 +310,7 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchInvoices();
     }
+    return ok;
   },
 
   updateInvoice: async (id, invoice) => {
@@ -314,6 +322,7 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchInvoices();
     }
+    return ok;
   },
 
   updateInvoiceStatus: async (id, status) => {
@@ -325,6 +334,7 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchInvoices();
     }
+    return ok;
   },
 
   deleteInvoice: async (id) => {
@@ -333,6 +343,7 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       // Refetch to get the latest data
       await get().fetchInvoices();
     }
+    return ok;
   },
 
   downloadArchivedInvoices: async () => {
@@ -413,6 +424,7 @@ export const useLaborStore = create<LaborState>((set, get) => ({
     if (ok) {
       await get().fetchLaborCharges();
     }
+    return ok;
   },
 
   updateLaborCharge: async (id, labor) => {
@@ -423,6 +435,7 @@ export const useLaborStore = create<LaborState>((set, get) => ({
     if (ok) {
       await get().fetchLaborCharges();
     }
+    return ok;
   },
 
   deleteLaborCharge: async (id) => {
@@ -430,5 +443,6 @@ export const useLaborStore = create<LaborState>((set, get) => ({
     if (ok) {
       await get().fetchLaborCharges();
     }
+    return ok;
   },
 }));

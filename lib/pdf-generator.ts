@@ -64,7 +64,7 @@ export async function generateInvoicePDF(invoice: Invoice, currentUser: User | u
       foreignObjectRendering: false,
     });
 
-    const pdf = createPDFDocument();
+    const pdf = createPDFDocument(jsPDF);
     addImageToPDFMultiPage(pdf, canvas);
 
     return pdf.output('blob');
@@ -194,8 +194,7 @@ function createPDFContainer(): HTMLDivElement {
   return container;
 }
 
-function createPDFDocument() {
-  const { jsPDF } = require('jspdf');
+function createPDFDocument(jsPDF: any) {
   return new jsPDF({
     orientation: 'portrait',
     unit: 'mm',

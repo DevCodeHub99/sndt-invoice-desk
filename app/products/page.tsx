@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProductsStore } from '@/lib/store-mongodb';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -55,7 +55,7 @@ export default function ProductsPage() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const productData = {
       name: formData.name,
@@ -64,12 +64,16 @@ export default function ProductsPage() {
       hsnSac: formData.hsnSac || undefined,
     };
 
+    let success = false;
     if (editingProduct) {
-      updateProduct(editingProduct.id, productData);
+      success = await updateProduct(editingProduct.id, productData);
     } else {
-      addProduct(productData);
+      success = await addProduct(productData);
     }
-    closeModal();
+
+    if (success) {
+      closeModal();
+    }
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -126,8 +130,8 @@ export default function ProductsPage() {
 
           {/* Product Cards */}
           {products.map((product) => (
-            <Card 
-              key={product.id} 
+            <Card
+              key={product.id}
               className="hover:shadow-md hover:border-primary/20 transition-all cursor-pointer group"
               onClick={() => openModal(product)}
             >
@@ -147,15 +151,15 @@ export default function ProductsPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {product.description && (
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
                 )}
-                
+
                 {product.hsnSac && (
                   <p className="text-xs text-muted-foreground mb-2">HSN/SAC: <span className="font-semibold text-foreground">{product.hsnSac}</span></p>
                 )}
-                
+
                 <div className="flex items-center justify-between pt-3 border-t">
                   <div className="flex items-center gap-1">
                     <button

@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     checkAuth();
-  }, [pathname]); // Re-check on route change
+  }, [pathname, isPublicRoute, router, verifyAuth]); // Re-check on route change
 
   // Show loading state while checking authentication
   if (isChecking && !isPublicRoute) {

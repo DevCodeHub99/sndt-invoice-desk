@@ -13,14 +13,14 @@ import Link from 'next/link';
 
 export default function Dashboard() {
   const router = useRouter();
-  
+
   // ✅ GOOD: Only subscribe to what you need
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  
+
   // ✅ Load data on demand
   const invoices = useInvoicesStore(state => state.invoices);
   const fetchInvoices = useInvoicesStore(state => state.fetchInvoices);
-  
+
   const clients = useClientsStore(state => state.clients);
   const fetchClients = useClientsStore(state => state.fetchClients);
 
@@ -40,10 +40,10 @@ export default function Dashboard() {
     const now = new Date();
     const thisMonth = invoices.filter((inv) => {
       const invDate = new Date(inv.createdAt);
-      return invDate.getMonth() === now.getMonth() && 
-             invDate.getFullYear() === now.getFullYear();
+      return invDate.getMonth() === now.getMonth() &&
+        invDate.getFullYear() === now.getFullYear();
     });
-    
+
     const totalRevenueThisMonth = thisMonth.reduce((sum, inv) => sum + inv.total, 0);
     const pendingInvoices = invoices.filter((inv) => inv.status !== 'paid').length;
 
@@ -91,8 +91,8 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader 
-        title="Dashboard" 
+      <PageHeader
+        title="Dashboard"
         description="Overview of your billing activity"
         action={
           <LinkButton href="/invoices/new" aria-label="Create new invoice">
@@ -106,9 +106,9 @@ export default function Dashboard() {
       <section aria-label="Business statistics">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {stats.map((stat) => (
-            <Link 
-              key={stat.label} 
-              href={stat.href} 
+            <Link
+              key={stat.label}
+              href={stat.href}
               className="block"
               aria-label={`${stat.label}: ${stat.value}`}
             >
@@ -130,7 +130,7 @@ export default function Dashboard() {
 
       {/* Quick Actions - Note: Products count removed to avoid loading products store */}
       <nav aria-label="Quick actions" className="hidden sm:grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Link 
+        <Link
           href="/invoices/new"
           className="flex items-center gap-4 p-4 bg-card border rounded-xl hover:shadow-md hover:border-primary/30 transition-all"
           aria-label="Create new invoice"
@@ -145,7 +145,7 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         </Link>
 
-        <Link 
+        <Link
           href="/products"
           className="flex items-center gap-4 p-4 bg-card border rounded-xl hover:shadow-md hover:border-primary/30 transition-all"
           aria-label="View products"
@@ -160,7 +160,7 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
         </Link>
 
-        <Link 
+        <Link
           href="/clients"
           className="flex items-center gap-4 p-4 bg-card border rounded-xl hover:shadow-md hover:border-primary/30 transition-all"
           aria-label={`View clients (${clients.length} companies)`}
@@ -181,8 +181,8 @@ export default function Dashboard() {
         <Card>
           <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between">
             <h2 id="recent-invoices-heading" className="font-semibold text-foreground text-sm sm:text-base">Recent Invoices</h2>
-            <Link 
-              href="/invoices" 
+            <Link
+              href="/invoices"
               className="text-xs sm:text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
               aria-label="View all invoices"
             >
@@ -224,8 +224,12 @@ export default function Dashboard() {
                             <p className="font-medium text-foreground text-sm sm:text-base">{formatCurrency(invoice.total)}</p>
                             <p className="text-xs text-muted-foreground hidden sm:block">{formatDate(invoice.createdAt)}</p>
                           </div>
-                          <Badge variant={invoice.status === 'paid' ? 'success' : 'warning'}>
-                            {invoice.status === 'paid' ? 'Paid' : 'Pending'}
+                          <Badge variant={
+                            invoice.status === 'paid' ? 'success' :
+                              invoice.status === 'partial' ? 'info' : 'warning'
+                          }>
+                            {invoice.status === 'paid' ? 'Paid' :
+                              invoice.status === 'partial' ? 'Partial' : 'Pending'}
                           </Badge>
                           <ArrowRight className="w-4 h-4 text-muted-foreground hidden sm:block" aria-hidden="true" />
                         </div>

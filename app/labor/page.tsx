@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLaborStore } from '@/lib/store-mongodb';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -57,7 +57,7 @@ export default function LaborPage() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const laborData = {
       name: formData.name,
@@ -67,12 +67,16 @@ export default function LaborPage() {
       unit: formData.rateType === 'per_unit' ? formData.unit : undefined,
     };
 
+    let success = false;
     if (editingLabor) {
-      updateLaborCharge(editingLabor.id, laborData);
+      success = await updateLaborCharge(editingLabor.id, laborData);
     } else {
-      addLaborCharge(laborData);
+      success = await addLaborCharge(laborData);
     }
-    closeModal();
+
+    if (success) {
+      closeModal();
+    }
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -129,8 +133,8 @@ export default function LaborPage() {
 
           {/* Labor Cards */}
           {laborCharges.map((labor) => (
-            <Card 
-              key={labor.id} 
+            <Card
+              key={labor.id}
               className="hover:shadow-md hover:border-primary/20 transition-all cursor-pointer group"
               onClick={() => openModal(labor)}
             >
@@ -145,7 +149,7 @@ export default function LaborPage() {
                         {labor.name}
                       </h3>
                       <p className="text-lg font-semibold text-foreground">
-                        {labor.rateType === 'fixed' 
+                        {labor.rateType === 'fixed'
                           ? formatCurrency(labor.rate)
                           : `${formatCurrency(labor.rate)}${labor.unit ? ` ${labor.unit}` : '/qty'}`
                         }
@@ -153,11 +157,11 @@ export default function LaborPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {labor.description && (
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{labor.description}</p>
                 )}
-                
+
                 <div className="flex items-center justify-between pt-3 border-t">
                   <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
                     {labor.rateType === 'fixed' ? 'Fixed Price' : 'Per Qty'}
