@@ -83,32 +83,59 @@ body {
 }
 
 /* Print styles - Performance */
+/* Print styles - Performance & Layout */
+/* Print styles - Performance & Layout */
 @media print {
-  body {
-    background: white;
+  @page {
+    size: A4;
+    margin: 0mm;
   }
 
+  body {
+    background: white;
+    visibility: hidden;
+    /* Hide everything by default */
+  }
+
+  /* Only show the invoice container */
+  #invoice-print-container {
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 0;
+    /* Let the component handle padding if needed, or set small padding */
+    background: white;
+    z-index: 9999;
+  }
+
+  /* Ensure children of the container are also visible */
+  #invoice-print-container * {
+    visibility: visible;
+  }
+
+  /* Reset typical UI elements if they sneak in */
+  nav,
+  header,
+  footer,
+  button,
   .no-print {
     display: none !important;
   }
 
-  @page {
-    size: A4;
-    margin: 10mm;
+  /* Ensure colors print correctly */
+  * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
 
+  /* Remove shadows and borders for print */
   .invoice-card {
-    page-break-inside: avoid;
     box-shadow: none !important;
     border: none !important;
-  }
-
-  table {
-    page-break-inside: avoid;
-  }
-
-  tr {
-    page-break-inside: avoid;
   }
 }
 
@@ -124,37 +151,25 @@ body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* PDF Export - Optimized */
-.invoice-card {
-  color: #000 !important;
-  background-color: #fff !important;
-}
+/* Print-friendly overrides only when actually printing */
+@media print {
+  .invoice-card {
+    color: #000;
+  }
 
-.invoice-card * {
-  color: inherit !important;
-  background-color: transparent !important;
-}
-
-.invoice-card h1,
-.invoice-card h2,
-.invoice-card h3,
-.invoice-card p,
-.invoice-card span {
-  color: #000 !important;
-}
-
-.invoice-card table {
-  color: #000 !important;
-}
-
-.invoice-card table th,
-.invoice-card table td {
-  color: #000 !important;
-  background-color: transparent !important;
+  .invoice-card h1,
+  .invoice-card h2,
+  .invoice-card h3,
+  .invoice-card p,
+  .invoice-card span,
+  .invoice-card div {
+    color: #000;
+  }
 }
 
 /* Reduced motion - Accessibility */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

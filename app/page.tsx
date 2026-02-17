@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore, useInvoicesStore, useClientsStore } from '@/lib/store-mongodb';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
+import { useInvoicesStore } from '@/lib/stores/useInvoiceStore';
+import { useClientsStore } from '@/lib/stores/useClientStore';
 import { Card, CardContent } from '@/components/ui/Card';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/Badge';

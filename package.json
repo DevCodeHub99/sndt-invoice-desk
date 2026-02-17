@@ -7,15 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-secrets": "node scripts/generate-secrets.js",
-    "seed": "node scripts/seed.js",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.3",
-    "jspdf": "^4.0.0",
     "lucide-react": "^0.562.0",
     "mongodb": "^7.0.0",
     "mongoose": "^9.1.4",
@@ -24,6 +20,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "uuid": "^13.0.0",
+    "zod": "^4.3.6",
     "zustand": "^5.0.10"
   },
   "devDependencies": {

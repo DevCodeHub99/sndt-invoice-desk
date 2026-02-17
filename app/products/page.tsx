@@ -1,247 +1,30 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useProductsStore } from '@/lib/store-mongodb';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
-import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { formatCurrency } from '@/lib/utils';
-import { Plus, Package, Pencil, Trash2 } from 'lucide-react';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth-server';
+import { connectDB } from '@/lib/mongodb';
+import { ProductModel } from '@/lib/models/Product';
+import ProductListClient from './ProductListClient';
 import type { Product } from '@/lib/types';
 
-export default function ProductsPage() {
-  const { products, fetchProducts, addProduct, updateProduct, deleteProduct } = useProductsStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    hsnSac: '',
-  });
+export const dynamic = 'force-dynamic';
 
-  // Fetch products on mount
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+export default async function ProductsPage() {
+  const { userId } = await getSession();
 
-  const resetForm = () => {
-    setFormData({ name: '', description: '', price: '', hsnSac: '' });
-    setEditingProduct(null);
-  };
+  await connectDB();
 
-  const openModal = (product?: Product) => {
-    if (product) {
-      setEditingProduct(product);
-      setFormData({
-        name: product.name,
-        description: product.description,
-        price: product.price.toString(),
-        hsnSac: product.hsnSac || '',
-      });
-    } else {
-      resetForm();
-    }
-    setIsModalOpen(true);
-  };
+  const products = await ProductModel.find({ userId })
+    .sort({ createdAt: -1 })
+    .lean();
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    resetForm();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const productData = {
-      name: formData.name,
-      description: formData.description,
-      price: parseFloat(formData.price) || 0,
-      hsnSac: formData.hsnSac || undefined,
+  const serializedProducts = products.map(doc => {
+    const p = doc as unknown as Product & { _id: any };
+    return {
+      ...p,
+      _id: p._id.toString(),
+      createdAt: p.createdAt,
     };
+  }) as Product[];
 
-    let success = false;
-    if (editingProduct) {
-      success = await updateProduct(editingProduct.id, productData);
-    } else {
-      success = await addProduct(productData);
-    }
-
-    if (success) {
-      closeModal();
-    }
-  };
-
-  const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setDeleteId(id);
-  };
-
-  const confirmDelete = () => {
-    if (deleteId) {
-      deleteProduct(deleteId);
-      setDeleteId(null);
-    }
-  };
-
-  return (
-    <div>
-      <PageHeader
-        title="Products"
-        description="Manage your products and services"
-        action={products.length === 0 ? (
-          <Button onClick={() => openModal()}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Product
-          </Button>
-        ) : undefined}
-      />
-
-      {products.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Package}
-            title="No products yet"
-            description="Add your first product to start creating invoices."
-            action={
-              <Button onClick={() => openModal()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Product
-              </Button>
-            }
-          />
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Add New Card */}
-          <button
-            onClick={() => openModal()}
-            className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl hover:border-primary hover:bg-primary/5 transition-all min-h-[120px] sm:min-h-[160px] cursor-pointer group"
-          >
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
-              <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <p className="font-medium text-muted-foreground group-hover:text-primary transition-colors">Add Product</p>
-          </button>
-
-          {/* Product Cards */}
-          {products.map((product) => (
-            <Card
-              key={product.id}
-              className="hover:shadow-md hover:border-primary/20 transition-all cursor-pointer group"
-              onClick={() => openModal(product)}
-            >
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Package className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
-                        {product.name}
-                      </h3>
-                      <p className="text-lg font-semibold text-foreground">
-                        {formatCurrency(product.price)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {product.description && (
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
-                )}
-
-                {product.hsnSac && (
-                  <p className="text-xs text-muted-foreground mb-2">HSN/SAC: <span className="font-semibold text-foreground">{product.hsnSac}</span></p>
-                )}
-
-                <div className="flex items-center justify-between pt-3 border-t">
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openModal(product);
-                      }}
-                      className="p-2 rounded-lg hover:bg-secondary/10 transition-colors"
-                      aria-label="Edit product"
-                    >
-                      <Pencil className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDelete(e, product.id)}
-                      className="p-2 rounded-lg hover:bg-danger/10 transition-colors"
-                      aria-label="Delete product"
-                    >
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-danger" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingProduct ? 'Edit Product' : 'Add Product'}
-      >
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
-          <Input
-            label="Product Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., Consulting Service"
-            required
-            autoFocus
-          />
-          <Input
-            label="Description"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Brief description (optional)"
-          />
-          <Input
-            label="Price (₹)"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-            placeholder="0.00"
-            required
-          />
-          <Input
-            label="HSN/SAC Code (Optional)"
-            value={formData.hsnSac}
-            onChange={(e) => setFormData({ ...formData, hsnSac: e.target.value })}
-            placeholder="e.g., 9406 or 998311"
-          />
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
-            <Button type="button" variant="secondary" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {editingProduct ? 'Save Changes' : 'Add Product'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <ConfirmModal
-        isOpen={deleteId !== null}
-        onClose={() => setDeleteId(null)}
-        onConfirm={confirmDelete}
-        title="Delete Product"
-        message="Are you sure you want to remove this product? This action cannot be undone."
-        confirmText="Delete"
-      />
-    </div>
-  );
+  return <ProductListClient initialProducts={serializedProducts} />;
 }

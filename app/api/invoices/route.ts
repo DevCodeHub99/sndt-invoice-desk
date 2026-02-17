@@ -4,7 +4,7 @@ import { InvoiceModel } from '@/lib/models/Invoice';
 import { v4 as uuidv4 } from 'uuid';
 import { withAuth } from '@/lib/middleware';
 import { apiRateLimit } from '@/lib/rate-limit';
-import { getCurrentMonthRange } from '@/lib/invoice-retention';
+import { getCurrentMonthRange } from '@/lib/utils';
 import { errorResponse, successResponse, getPaginationParams } from '@/lib/api-helpers';
 import { sanitize, validateRequired } from '@/lib/validation';
 import { logger } from '@/lib/logger';

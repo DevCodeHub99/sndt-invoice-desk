@@ -146,7 +146,7 @@ export function numberToWords(num: number): string {
 
 export function calculateGST(subtotal: number, taxRate: number, isInterState: boolean = false) {
   const totalTax = subtotal * (taxRate / 100);
-  
+
   if (isInterState) {
     return {
       cgst: 0,
@@ -167,4 +167,18 @@ export function calculateGST(subtotal: number, taxRate: number, isInterState: bo
 export function calculateRoundOff(total: number): number {
   const rounded = Math.round(total);
   return rounded - total;
+}
+
+export function getCurrentMonthRange(): { start: Date; end: Date } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { start, end };
+}
+
+export function getLastMonthRange(): { start: Date; end: Date } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  return { start, end };
 }
