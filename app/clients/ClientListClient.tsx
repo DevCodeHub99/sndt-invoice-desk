@@ -179,7 +179,7 @@ export default function ClientListClient({ initialClients }: ClientListClientPro
                 router.refresh();
             } else {
                 // Show error from API
-                setError(response.data?.error || 'Failed to save client');
+                setError(response.error || 'Failed to save client');
             }
         } catch (error) {
             console.error('Failed to save client:', error);

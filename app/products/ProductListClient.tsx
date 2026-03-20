@@ -105,7 +105,7 @@ export default function ProductListClient({ initialProducts }: ProductListClient
                 router.refresh();
             } else {
                 // Show error from API
-                setError(response.data?.error || 'Failed to save product');
+                setError(response.error || 'Failed to save product');
             }
         } catch (error) {
             console.error('Failed to save product:', error);

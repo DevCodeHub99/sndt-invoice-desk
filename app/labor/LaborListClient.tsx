@@ -109,7 +109,7 @@ export default function LaborListClient({ initialLaborCharges }: LaborListClient
                 router.refresh();
             } else {
                 // Show error from API
-                setError(response.data?.error || 'Failed to save labor charge');
+                setError(response.error || 'Failed to save labor charge');
             }
         } catch (error) {
             console.error('Failed to save labor charge:', error);
