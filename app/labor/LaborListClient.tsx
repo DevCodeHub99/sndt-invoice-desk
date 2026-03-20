@@ -23,6 +23,7 @@ export default function LaborListClient({ initialLaborCharges }: LaborListClient
     const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const [editingLabor, setEditingLabor] = useState<Labor | null>(null);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
@@ -58,6 +59,7 @@ export default function LaborListClient({ initialLaborCharges }: LaborListClient
 
     const closeModal = () => {
         setIsModalOpen(false);
+        setError('');
         resetForm();
     };
 
@@ -65,37 +67,53 @@ export default function LaborListClient({ initialLaborCharges }: LaborListClient
         e.preventDefault();
         if (isSubmitting) return;
 
+        // Client-side validation
+        setError('');
+        
+        if (!formData.name.trim()) {
+            setError('Labor name is required');
+            return;
+        }
+        
+        const rate = parseFloat(formData.rate);
+        if (isNaN(rate) || rate < 0) {
+            setError('Please enter a valid rate');
+            return;
+        }
+
         setIsSubmitting(true);
         const laborData = {
-            name: formData.name,
-            description: formData.description,
+            name: formData.name.trim(),
+            description: formData.description.trim() || '',
             rateType: formData.rateType,
-            rate: parseFloat(formData.rate) || 0,
-            unit: formData.rateType === 'per_unit' ? formData.unit : undefined,
+            rate: rate,
+            unit: formData.rateType === 'per_unit' ? formData.unit.trim() || undefined : undefined,
         };
 
         try {
-            let ok = false;
+            let response;
             if (editingLabor) {
-                const res = await apiCall(`/api/labor/${editingLabor.id}`, {
+                response = await apiCall(`/api/labor/${editingLabor.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(laborData),
                 });
-                ok = res.ok;
             } else {
-                const res = await apiCall('/api/labor', {
+                response = await apiCall('/api/labor', {
                     method: 'POST',
                     body: JSON.stringify(laborData),
                 });
-                ok = res.ok;
             }
 
-            if (ok) {
+            if (response.ok) {
                 closeModal();
                 router.refresh();
+            } else {
+                // Show error from API
+                setError(response.data?.error || 'Failed to save labor charge');
             }
         } catch (error) {
             console.error('Failed to save labor charge:', error);
+            setError('An unexpected error occurred');
         } finally {
             setIsSubmitting(false);
         }
@@ -227,6 +245,11 @@ export default function LaborListClient({ initialLaborCharges }: LaborListClient
                 title={editingLabor ? 'Edit Labor Charge' : 'Add Labor Charge'}
             >
                 <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+                    {error && (
+                        <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                            {error}
+                        </div>
+                    )}
                     <Input
                         label="Name"
                         value={formData.name}

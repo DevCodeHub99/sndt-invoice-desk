@@ -40,6 +40,7 @@ export default function ClientListClient({ initialClients }: ClientListClientPro
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [formData, setFormData] = useState(emptyForm);
@@ -90,6 +91,7 @@ export default function ClientListClient({ initialClients }: ClientListClientPro
 
     const closeEdit = () => {
         setIsEditOpen(false);
+        setError('');
         resetForm();
     };
 
@@ -97,29 +99,91 @@ export default function ClientListClient({ initialClients }: ClientListClientPro
         e.preventDefault();
         if (isSubmitting) return;
 
+        // Client-side validation
+        setError('');
+        
+        if (!formData.companyName.trim()) {
+            setError('Company name is required');
+            return;
+        }
+        if (!formData.email.trim()) {
+            setError('Email is required');
+            return;
+        }
+        if (!formData.phone.trim()) {
+            setError('Phone is required');
+            return;
+        }
+        if (!formData.billingAddress.trim()) {
+            setError('Billing address is required');
+            return;
+        }
+        if (!formData.billingCity.trim()) {
+            setError('Billing city is required');
+            return;
+        }
+        if (!formData.billingState.trim()) {
+            setError('Billing state is required');
+            return;
+        }
+        if (!formData.billingZipCode.trim()) {
+            setError('Billing PIN code is required');
+            return;
+        }
+        if (!formData.billingCountry.trim()) {
+            setError('Billing country is required');
+            return;
+        }
+
+        // Validate shipping address if different from billing
+        if (!formData.shippingSameAsBilling) {
+            if (!formData.shippingAddress.trim()) {
+                setError('Shipping address is required');
+                return;
+            }
+            if (!formData.shippingCity.trim()) {
+                setError('Shipping city is required');
+                return;
+            }
+            if (!formData.shippingState.trim()) {
+                setError('Shipping state is required');
+                return;
+            }
+            if (!formData.shippingZipCode.trim()) {
+                setError('Shipping PIN code is required');
+                return;
+            }
+            if (!formData.shippingCountry.trim()) {
+                setError('Shipping country is required');
+                return;
+            }
+        }
+
         setIsSubmitting(true);
         try {
-            let ok = false;
+            let response;
             if (editingClient) {
-                const res = await apiCall(`/api/clients/${editingClient.id}`, {
+                response = await apiCall(`/api/clients/${editingClient.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(formData),
                 });
-                ok = res.ok;
             } else {
-                const res = await apiCall('/api/clients', {
+                response = await apiCall('/api/clients', {
                     method: 'POST',
                     body: JSON.stringify(formData),
                 });
-                ok = res.ok;
             }
 
-            if (ok) {
+            if (response.ok) {
                 closeEdit();
                 router.refresh();
+            } else {
+                // Show error from API
+                setError(response.data?.error || 'Failed to save client');
             }
         } catch (error) {
             console.error('Failed to save client:', error);
+            setError('An unexpected error occurred');
         } finally {
             setIsSubmitting(false);
         }
@@ -344,6 +408,11 @@ export default function ClientListClient({ initialClients }: ClientListClientPro
                 size="lg"
             >
                 <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
+                    {error && (
+                        <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                            {error}
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
                             label="Company Name"

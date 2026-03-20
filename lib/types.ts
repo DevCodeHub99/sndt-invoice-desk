@@ -2,7 +2,7 @@ export interface Product {
   id: string;
   userId: string; // User isolation
   name: string;
-  description: string;
+  description?: string;
   price: number;
   hsnSac?: string;
   createdAt: Date;

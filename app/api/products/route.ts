@@ -10,7 +10,7 @@ import { logger } from '@/lib/logger';
 
 // Use generic CRUD handlers
 const handlers = createCrudHandlers(ProductModel, 'products', {
-  requiredFields: ['name', 'description', 'price'],
+  requiredFields: ['name', 'price'],
   userIdField: 'userId',
 });
 
@@ -28,7 +28,7 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
     const data = sanitize(rawData);
 
     // Validate required fields
-    const validation = validateRequired(data, ['name', 'description', 'price']);
+    const validation = validateRequired(data, ['name', 'price']);
     if (!validation.valid) {
       return errorResponse(
         `Missing required fields: ${validation.missing?.join(', ')}`,
@@ -43,6 +43,7 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
 
     const product = await ProductModel.create({
       ...data,
+      description: data.description || '',
       id: uuidv4(),
       userId,
       createdAt: new Date(),

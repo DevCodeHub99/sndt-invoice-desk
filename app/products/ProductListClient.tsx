@@ -22,6 +22,7 @@ export default function ProductListClient({ initialProducts }: ProductListClient
     const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
@@ -43,7 +44,7 @@ export default function ProductListClient({ initialProducts }: ProductListClient
             setEditingProduct(product);
             setFormData({
                 name: product.name,
-                description: product.description,
+                description: product.description || '',
                 price: product.price.toString(),
                 hsnSac: product.hsnSac || '',
             });
@@ -55,6 +56,7 @@ export default function ProductListClient({ initialProducts }: ProductListClient
 
     const closeModal = () => {
         setIsModalOpen(false);
+        setError('');
         resetForm();
     };
 
@@ -62,36 +64,52 @@ export default function ProductListClient({ initialProducts }: ProductListClient
         e.preventDefault();
         if (isSubmitting) return;
 
+        // Client-side validation
+        setError('');
+        
+        if (!formData.name.trim()) {
+            setError('Product name is required');
+            return;
+        }
+        
+        const price = parseFloat(formData.price);
+        if (isNaN(price) || price < 0) {
+            setError('Please enter a valid price');
+            return;
+        }
+
         setIsSubmitting(true);
         const productData = {
-            name: formData.name,
-            description: formData.description,
-            price: parseFloat(formData.price) || 0,
-            hsnSac: formData.hsnSac || undefined,
+            name: formData.name.trim(),
+            description: formData.description.trim() || '',
+            price: price,
+            hsnSac: formData.hsnSac.trim() || undefined,
         };
 
         try {
-            let ok = false;
+            let response;
             if (editingProduct) {
-                const res = await apiCall(`/api/products/${editingProduct.id}`, {
+                response = await apiCall(`/api/products/${editingProduct.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(productData),
                 });
-                ok = res.ok;
             } else {
-                const res = await apiCall('/api/products', {
+                response = await apiCall('/api/products', {
                     method: 'POST',
                     body: JSON.stringify(productData),
                 });
-                ok = res.ok;
             }
 
-            if (ok) {
+            if (response.ok) {
                 closeModal();
                 router.refresh();
+            } else {
+                // Show error from API
+                setError(response.data?.error || 'Failed to save product');
             }
         } catch (error) {
             console.error('Failed to save product:', error);
+            setError('An unexpected error occurred');
         } finally {
             setIsSubmitting(false);
         }
@@ -221,6 +239,11 @@ export default function ProductListClient({ initialProducts }: ProductListClient
                 title={editingProduct ? 'Edit Product' : 'Add Product'}
             >
                 <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+                    {error && (
+                        <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                            {error}
+                        </div>
+                    )}
                     <Input
                         label="Product Name"
                         value={formData.name}
