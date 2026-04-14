@@ -87,7 +87,7 @@ export function useInvoiceCalculations({
 
         invoiceItems.forEach((item) => {
             const quantity = typeof item.quantity === 'string'
-                ? (parseInt(item.quantity as unknown as string) || 1) // Should be number due to conversion above, but safe cast
+                ? (parseInt(item.quantity as unknown as string) || 1)
                 : (item.quantity || 1);
 
             const itemSubtotal = quantity * item.unitPrice;
@@ -106,8 +106,14 @@ export function useInvoiceCalculations({
             }
         });
 
+        // Round intermediate results to 2 decimals to avoid floating point drift
+        subtotal = Math.round(subtotal * 100) / 100;
+        totalCgst = Math.round(totalCgst * 100) / 100;
+        totalSgst = Math.round(totalSgst * 100) / 100;
+        totalIgst = Math.round(totalIgst * 100) / 100;
+
         // Add manpower charges (no tax) - price × quantity
-        const manpowerTotal = manpowerItems.reduce((sum, item) => {
+        const manpowerTotal = Math.round(manpowerItems.reduce((sum, item) => {
             const price = typeof item.amount === 'string'
                 ? (parseFloat(item.amount) || 0)
                 : (item.amount || 0);
@@ -115,19 +121,19 @@ export function useInvoiceCalculations({
                 ? (parseInt(item.quantity) || 1)
                 : (item.quantity || 1);
             return sum + (price * quantity);
-        }, 0);
+        }, 0) * 100) / 100;
 
-        const totalTax = totalCgst + totalSgst + totalIgst;
-        const total = subtotal + totalTax + manpowerTotal;
-        const roundOff = Math.round(total) - total;
-        const finalTotal = Math.round(total);
+        const totalTax = Math.round((totalCgst + totalSgst + totalIgst) * 100) / 100;
+        const total = Math.round((subtotal + totalTax + manpowerTotal) * 100) / 100;
+        const finalTotal = total;
+        const roundOff = 0;
 
         // Calculate advance payment and balance due
         const advance = typeof advancePayment === 'string'
             ? (parseFloat(advancePayment) || 0)
             : (advancePayment || 0);
 
-        const balanceDue = Math.max(0, finalTotal - advance);
+        const balanceDue = Math.max(0, Math.round((finalTotal - advance) * 100) / 100);
 
         return {
             subtotal,

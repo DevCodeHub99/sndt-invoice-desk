@@ -2,7 +2,8 @@ export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount).replace('₹', '₹ ');
 }
 
@@ -82,33 +83,41 @@ export function calculateItemTotal(quantity: number, unitPrice: number, taxRate:
   tax: number;
   total: number;
 } {
-  const subtotal = quantity * unitPrice;
-  const tax = subtotal * (taxRate / 100);
+  const subtotal = Math.round((quantity * unitPrice) * 100) / 100;
+  const tax = Math.round((subtotal * (taxRate / 100)) * 100) / 100;
   return {
     subtotal,
     tax,
-    total: subtotal + tax,
+    total: Math.round((subtotal + tax) * 100) / 100,
   };
 }
 
-export function numberToWords(num: number): string {
+function convertToWords(num: number): string {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
   const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
   const scales = ['', 'Thousand', 'Lakh', 'Crore'];
 
-  if (num === 0) return 'Zero';
+  if (num === 0) return '';
 
   let words = '';
   let scaleIndex = 0;
+  let n = num;
 
-  while (num > 0) {
-    let groupValue = num % 1000;
-    if (num >= 100000) {
-      groupValue = num % 100;
-      num = Math.floor(num / 100);
-    } else {
-      num = Math.floor(num / 1000);
+  while (n > 0) {
+    let groupValue;
+    if (scaleIndex === 0) {
+      groupValue = n % 1000;
+      n = Math.floor(n / 1000);
+    } else if (scaleIndex === 1) { // Thousand
+      groupValue = n % 100;
+      n = Math.floor(n / 100);
+    } else if (scaleIndex === 2) { // Lakh
+      groupValue = n % 100;
+      n = Math.floor(n / 100);
+    } else { // Crore and above
+      groupValue = n % 100;
+      n = Math.floor(n / 100);
     }
 
     if (groupValue > 0) {
@@ -141,11 +150,35 @@ export function numberToWords(num: number): string {
     scaleIndex++;
   }
 
-  return words.trim() + ' Rupees Only';
+  return words.trim();
+}
+
+export function numberToWords(num: number): string {
+  // Round to nearest 2 decimal places to fix floating point issues (e.g. 416552.999999 -> 416553.00)
+  const roundedNum = Math.round(num * 100) / 100;
+
+  if (roundedNum === 0) return 'Zero Rupees Only';
+
+  const rupees = Math.floor(roundedNum);
+  const paise = Math.round((roundedNum - rupees) * 100);
+
+  let result = '';
+
+  if (rupees > 0) {
+    result += convertToWords(rupees) + ' Rupees';
+  } else if (paise > 0) {
+    result += 'Zero Rupees';
+  }
+
+  if (paise > 0) {
+    result += ' and ' + convertToWords(paise) + ' Paise';
+  }
+
+  return result + ' Only';
 }
 
 export function calculateGST(subtotal: number, taxRate: number, isInterState: boolean = false) {
-  const totalTax = subtotal * (taxRate / 100);
+  const totalTax = Math.round((subtotal * (taxRate / 100)) * 100) / 100;
 
   if (isInterState) {
     return {
@@ -156,17 +189,17 @@ export function calculateGST(subtotal: number, taxRate: number, isInterState: bo
     };
   }
 
+  const halfTax = Math.round((totalTax / 2) * 100) / 100;
   return {
-    cgst: totalTax / 2,
-    sgst: totalTax / 2,
+    cgst: halfTax,
+    sgst: halfTax,
     igst: 0,
-    total: totalTax,
+    total: Math.round((halfTax * 2) * 100) / 100,
   };
 }
 
 export function calculateRoundOff(total: number): number {
-  const rounded = Math.round(total);
-  return rounded - total;
+  return 0;
 }
 
 export function getCurrentMonthRange(): { start: Date; end: Date } {

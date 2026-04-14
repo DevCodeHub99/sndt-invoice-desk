@@ -31,7 +31,10 @@ const LAYOUT = {
 
 export function InvoiceTemplate({ invoice, currentUser, className = '' }: InvoiceTemplateProps) {
   const roundOff = calculateRoundOff(invoice.total);
-  const finalTotal = Math.round(invoice.total);
+  const finalTotal = invoice.total;
+  const balanceDue = (invoice.advancePayment ?? 0) > 0
+    ? (invoice.balanceDue ?? (finalTotal - (invoice.advancePayment ?? 0)))
+    : finalTotal;
 
   const itemCount = invoice.items.length + (invoice.manpowerCharges?.length || 0);
   const isCompact = itemCount > LAYOUT.compactThreshold;
@@ -72,10 +75,7 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
             <div className="flex-1 min-w-0">
               <div className={`${isCompact ? 'mb-4' : 'mb-6'}`}>
                 <AmountInWords
-                  amount={(invoice.advancePayment ?? 0) > 0
-                    ? (invoice.balanceDue ?? finalTotal - (invoice.advancePayment ?? 0))
-                    : finalTotal
-                  }
+                  amount={balanceDue}
                   isBalanceDue={(invoice.advancePayment ?? 0) > 0}
                   isCompact={isCompact}
                 />
@@ -90,6 +90,7 @@ export function InvoiceTemplate({ invoice, currentUser, className = '' }: Invoic
               <PaymentDetails
                 currentUser={currentUser}
                 invoiceNumber={invoice.invoiceNumber}
+                amount={balanceDue}
                 isCompact={isCompact}
               />
             </div>
@@ -337,10 +338,12 @@ function AmountInWords({ amount, isBalanceDue = false, isCompact }: { amount: nu
 function PaymentDetails({
   currentUser,
   invoiceNumber,
+  amount,
   isCompact
 }: {
   currentUser: User | undefined;
   invoiceNumber: string;
+  amount: number;
   isCompact: boolean;
 }) {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
@@ -353,6 +356,7 @@ function PaymentDetails({
       generateUPIQRCode({
         upiId,
         payeeName,
+        amount,
         transactionNote: `Payment for Invoice ${invoiceNumber}`,
         transactionRef: invoiceNumber,
       }, {
